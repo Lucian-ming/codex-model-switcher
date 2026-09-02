@@ -15,7 +15,7 @@ import { StatusBarController } from './ui/statusBar.js';
 import { QuickPickController } from './ui/quickPick.js';
 import { DiagnosticsRunner } from './commands/diagnose.js';
 import { CurrentConfigTreeProvider } from './ui/currentView.js';
-import { ProvidersTreeProvider } from './ui/providersView.js';
+import { ProvidersTreeProvider, ProviderTreeElement } from './ui/providersView.js';
 import { ProfilesTreeProvider } from './ui/profilesView.js';
 import { SettingsTreeProvider } from './ui/settingsView.js';
 import { ProviderConfig } from './providers/types.js';
@@ -79,7 +79,7 @@ export function activate(context: vscode.ExtensionContext) {
     outputChannel.appendLine(`提示: 文件变动监听器已降级启动: ${err}`);
   }
 
-  // 启动时自动同步模型目录
+  // 启动时自动将所有已配置服务商和模型合并注入 Codex
   const autoInject = vscode.workspace.getConfiguration('codexModelSwitcher').get<boolean>('autoInjectCatalog', true);
   if (autoInject) {
     syncCatalogToCodex();
@@ -98,6 +98,7 @@ export function activate(context: vscode.ExtensionContext) {
     vscode.commands.registerCommand('codexModelSwitcher.manageProviders', handleManageProviders),
     vscode.commands.registerCommand('codexModelSwitcher.addProvider', promptAddCustomProvider),
     vscode.commands.registerCommand('codexModelSwitcher.editProvider', promptEditProvider),
+    vscode.commands.registerCommand('codexModelSwitcher.deleteProviderDirectly', handleDeleteProviderDirectly),
     vscode.commands.registerCommand('codexModelSwitcher.manageProfiles', handleManageProfiles),
     vscode.commands.registerCommand('codexModelSwitcher.openConfig', handleOpenConfig),
     vscode.commands.registerCommand('codexModelSwitcher.restoreConfig', handleRestoreConfig),
@@ -107,7 +108,7 @@ export function activate(context: vscode.ExtensionContext) {
   );
 
   context.subscriptions.push(statusBar);
-  outputChannel.appendLine('Codex 模型切换器激活完成。');
+  outputChannel.appendLine('Codex 模型切换器激活完成。所有中转站均已就绪。');
 }
 
 export function deactivate() {
@@ -124,20 +125,28 @@ function refreshAllViews(): void {
 }
 
 /**
- * 将当前已知模型按标准契约导出到 ~/.codex/model_catalog.json 并同步至 config.toml
+ * 将所有已配置的中转站及其模型并发写入 Codex 系统：
+ * 1. 确保每一个服务商都在 config.toml 的 [model_providers] 表中同时注册生效；
+ * 2. 将所有中转站的模型汇总导出至 model_catalog.json，使官方 Codex 扩展可跨站直选。
  */
 function syncCatalogToCodex(): void {
   try {
-    const activeProviderId = configManager.getCurrentProvider() || 'OpenAI';
-    const activeProvider = registry.get(activeProviderId);
+    const allProviders = registry.list();
     let allModels: ModelProfile[] = [];
 
-    if (activeProvider && activeProvider.models) {
-      allModels.push(...activeProvider.models);
-    }
+    for (const p of allProviders) {
+      // 确保每个服务商在 config.toml 的 model_providers 中均有定义
+      configManager.upsertProvider(p.id, {
+        name: p.name,
+        base_url: p.baseUrl,
+        wire_api: p.protocol,
+        requires_openai_auth: p.requiresOpenaiAuth,
+        env_key: p.envKey,
+        http_headers: p.headers,
+        query_params: p.queryParams
+      });
 
-    for (const p of registry.list()) {
-      if (p.id !== activeProviderId && p.models) {
+      if (p.models && p.models.length > 0) {
         allModels.push(...p.models);
       }
     }
@@ -145,10 +154,10 @@ function syncCatalogToCodex(): void {
     if (allModels.length > 0) {
       const effectiveModels = overrideManager.applyToModels(allModels);
       CatalogExporter.exportCatalog(effectiveModels, undefined, configManager);
-      outputChannel.appendLine(`已向 Codex 官方目录导出 ${effectiveModels.length} 个模型。`);
+      outputChannel.appendLine(`已向 Codex 官方目录合并导出 ${effectiveModels.length} 个模型 (来自 ${allProviders.length} 个中转站)。`);
     }
   } catch (err: any) {
-    outputChannel.appendLine(`导出模型目录失败: ${err.message}`);
+    outputChannel.appendLine(`同步多站模型目录失败: ${err.message}`);
   }
 }
 
@@ -156,28 +165,23 @@ async function handleSwitchModel(): Promise<void> {
   const currentModel = configManager.getCurrentModel();
   const currentProviderId = configManager.getCurrentProvider();
 
+  // 跨所有已配置的中转站收集所有模型
   let candidateModels: ModelProfile[] = [];
-  const activeProvider = currentProviderId ? registry.get(currentProviderId) : undefined;
-
-  if (activeProvider && activeProvider.models && activeProvider.models.length > 0) {
-    candidateModels.push(...activeProvider.models);
-  }
-
   for (const p of registry.list()) {
-    if (p.id !== currentProviderId && p.models) {
+    if (p.models && p.models.length > 0) {
       candidateModels.push(...p.models);
     }
   }
 
   if (candidateModels.length === 0) {
     const action = await vscode.window.showWarningMessage(
-      '当前未发现可用模型。是否刷新模型列表或添加服务商？',
+      '当前未发现可用模型。是否从接口刷新模型或添加新中转站？',
       '刷新模型',
-      '添加服务商'
+      '添加中转站'
     );
     if (action === '刷新模型') {
       await handleRefreshModels();
-    } else if (action === '添加服务商') {
+    } else if (action === '添加中转站') {
       await promptAddCustomProvider();
     }
     return;
@@ -190,7 +194,6 @@ async function handleSwitchModel(): Promise<void> {
 }
 
 async function handleActivateModelDirectly(selected: ModelProfile): Promise<void> {
-  const currentProviderId = configManager.getCurrentProvider();
   const currentEffort = configManager.read().model_reasoning_effort || 'default';
 
   try {
@@ -200,10 +203,10 @@ async function handleActivateModelDirectly(selected: ModelProfile): Promise<void
       vscode.window.showWarningMessage(fallback.reason);
     }
 
-    // 2. 原子更新 config.toml
+    // 2. 原子更新 config.toml: 同时设置 model 和对应的 model_provider
     const cfg = configManager.read();
     cfg.model = selected.modelId;
-    if (selected.providerId && selected.providerId !== currentProviderId) {
+    if (selected.providerId) {
       cfg.model_provider = selected.providerId;
     }
     if (fallback.effort && fallback.effort !== 'none') {
@@ -217,11 +220,14 @@ async function handleActivateModelDirectly(selected: ModelProfile): Promise<void
     syncCatalogToCodex();
     refreshAllViews();
 
+    const providerObj = registry.get(selected.providerId);
+    const providerName = providerObj ? providerObj.name : selected.providerId;
+
     vscode.window.showInformationMessage(
-      `已切换当前 Codex 模型为: ${selected.displayName} (${selected.modelId}) [推理等级: ${fallback.effort}]`
+      `已激活模型: ${selected.displayName} (来自中转站: ${providerName}) [推理: ${fallback.effort}]`
     );
   } catch (err: any) {
-    vscode.window.showErrorMessage(`切换模型失败: ${err.message}`);
+    vscode.window.showErrorMessage(`激活模型失败: ${err.message}`);
   }
 }
 
@@ -240,10 +246,10 @@ async function handleSwitchProvider(): Promise<void> {
     } else {
       syncCatalogToCodex();
       refreshAllViews();
-      vscode.window.showInformationMessage(`已激活服务商: ${selected.name}`);
+      vscode.window.showInformationMessage(`已切换为中转站: ${selected.name}`);
     }
   } catch (err: any) {
-    vscode.window.showErrorMessage(`切换服务商失败: ${err.message}`);
+    vscode.window.showErrorMessage(`切换中转站失败: ${err.message}`);
   }
 }
 
@@ -284,18 +290,24 @@ async function handleAdjustReasoningEffort(): Promise<void> {
   }
 }
 
-async function handleOverrideContextWindow(): Promise<void> {
-  const currentModelId = configManager.getCurrentModel() || 'gpt-5.6-sol';
-  const currentProviderId = configManager.getCurrentProvider() || 'OpenAI';
-  const provider = registry.get(currentProviderId);
-  const model = provider?.models?.find(m => m.modelId === currentModelId);
+async function handleOverrideContextWindow(element?: ProviderTreeElement): Promise<void> {
+  let targetModelId = configManager.getCurrentModel() || 'gpt-5.6-sol';
+  let targetProviderId = configManager.getCurrentProvider() || 'OpenAI';
+
+  if (element && element.type === 'model') {
+    targetModelId = element.model.modelId;
+    targetProviderId = element.model.providerId;
+  }
+
+  const provider = registry.get(targetProviderId);
+  const model = provider?.models?.find(m => m.modelId === targetModelId);
 
   const discoveredTokens = model?.contextWindow || 128000;
-  const currentOverride = overrideManager.getOverride(currentProviderId, currentModelId);
+  const currentOverride = overrideManager.getOverride(targetProviderId, targetModelId);
   const currentTokens = currentOverride !== undefined ? currentOverride : discoveredTokens;
 
   const input = await vscode.window.showInputBox({
-    prompt: `请输入模型 ${currentModelId} 的上下文容量 (支持: 128K, 200K, 256K, 1M 或纯数字 token)`,
+    prompt: `请输入模型 ${targetModelId} 的上下文容量 (支持: 128K, 200K, 256K, 1M 或纯数字 token)`,
     value: ContextOverrideManager.formatTokens(currentTokens),
     validateInput: val => {
       const parsed = ContextOverrideManager.parseTokenInput(val);
@@ -311,11 +323,11 @@ async function handleOverrideContextWindow(): Promise<void> {
   if (!tokens) return;
 
   try {
-    overrideManager.setOverride(currentProviderId, currentModelId, tokens);
+    overrideManager.setOverride(targetProviderId, targetModelId, tokens);
     syncCatalogToCodex();
     refreshAllViews();
     vscode.window.showInformationMessage(
-      `已将 ${currentModelId} 的上下文容量覆盖为 ${ContextOverrideManager.formatTokens(tokens)} (${tokens} tokens)。`
+      `已将 ${targetModelId} 的上下文容量覆盖为 ${ContextOverrideManager.formatTokens(tokens)} (${tokens} tokens)。`
     );
   } catch (err: any) {
     vscode.window.showErrorMessage(`覆盖上下文窗口失败: ${err.message}`);
@@ -375,49 +387,57 @@ async function handleApplyProfileDirectly(profile: CodexProfile): Promise<void> 
   }
 }
 
-async function handleRefreshModels(): Promise<void> {
-  const currentProviderId = configManager.getCurrentProvider() || 'OpenAI';
-  const provider = registry.get(currentProviderId);
+async function handleRefreshModels(element?: ProviderTreeElement): Promise<void> {
+  let targetProviders: ProviderConfig[] = [];
 
-  if (!provider) {
-    vscode.window.showErrorMessage(`在注册表中未找到当前激活的服务商 "${currentProviderId}"。`);
-    return;
+  if (element && element.type === 'provider') {
+    targetProviders = [element.provider];
+  } else {
+    targetProviders = registry.list();
   }
 
-  if (!provider.baseUrl) {
-    vscode.window.showInformationMessage(`服务商 ${provider.name} 使用官方默认端点，无需接口刷新。`);
+  if (targetProviders.length === 0) {
+    vscode.window.showInformationMessage('当前未配置任何中转站。请先添加中转站。');
     return;
   }
 
   await vscode.window.withProgress(
     {
       location: vscode.ProgressLocation.Notification,
-      title: `正在从 ${provider.name} 发现模型...`,
+      title: '正在向中转站同步最新模型目录...',
       cancellable: false
     },
-    async () => {
-      try {
-        const apiKey = await secretManager.getSecret(`provider.${provider.id}.apiKey`);
-        const discovered = await ModelDiscovery.discover(provider, apiKey);
-
-        registry.updateModels(provider.id, discovered);
-        modelCache.set(provider.id, discovered);
-        syncCatalogToCodex();
-        refreshAllViews();
-
-        vscode.window.showInformationMessage(
-          `成功从 ${provider.name} 刷新并同步了 ${discovered.length} 个模型。`
-        );
-      } catch (err: any) {
-        vscode.window.showErrorMessage(`模型发现失败: ${err.message}`);
+    async (progress) => {
+      let totalDiscovered = 0;
+      for (const p of targetProviders) {
+        if (!p.baseUrl) continue;
+        progress.report({ message: `正在请求 ${p.name}...` });
+        try {
+          const apiKey = await secretManager.getSecret(`provider.${p.id}.apiKey`);
+          const discovered = await ModelDiscovery.discover(p, apiKey);
+          registry.updateModels(p.id, discovered);
+          modelCache.set(p.id, discovered);
+          totalDiscovered += discovered.length;
+        } catch (err: any) {
+          outputChannel.appendLine(`中转站 ${p.name} 模型发现失败: ${err.message}`);
+        }
       }
+
+      syncCatalogToCodex();
+      refreshAllViews();
+      vscode.window.showInformationMessage(`模型列表刷新完成，共汇总 ${totalDiscovered} 个模型。`);
     }
   );
 }
 
-async function handleTestProvider(): Promise<void> {
-  const providers = registry.list();
-  const selected = await QuickPickController.selectProvider(providers, configManager.getCurrentProvider());
+async function handleTestProvider(element?: ProviderTreeElement): Promise<void> {
+  let selected: ProviderConfig | undefined;
+  if (element && element.type === 'provider') {
+    selected = element.provider;
+  } else {
+    const providers = registry.list();
+    selected = await QuickPickController.selectProvider(providers, configManager.getCurrentProvider());
+  }
   if (!selected) return;
 
   await vscode.window.withProgress(
@@ -427,18 +447,18 @@ async function handleTestProvider(): Promise<void> {
       cancellable: false
     },
     async () => {
-      const apiKey = await secretManager.getSecret(`provider.${selected.id}.apiKey`);
-      const health = await ProviderTester.test(selected, apiKey);
+      const apiKey = await secretManager.getSecret(`provider.${selected!.id}.apiKey`);
+      const health = await ProviderTester.test(selected!, apiKey);
 
-      registry.updateHealth(selected.id, health.latencyMs, health.reachable && health.authValid);
+      registry.updateHealth(selected!.id, health.latencyMs, health.reachable && health.authValid);
       refreshAllViews();
 
       if (health.reachable && health.authValid) {
         vscode.window.showInformationMessage(
-          `✓ ${selected.name} 连接正常 (延迟: ${health.latencyMs}ms)。成功获取到 ${health.modelCount} 个模型。`
+          `✓ ${selected!.name} 连接正常 (延迟: ${health.latencyMs}ms)。成功获取到 ${health.modelCount} 个模型。`
         );
       } else {
-        vscode.window.showWarningMessage(`✗ ${selected.name}: ${health.message}`);
+        vscode.window.showWarningMessage(`✗ ${selected!.name}: ${health.message}`);
       }
     }
   );
@@ -449,9 +469,9 @@ async function handleManageProviders(): Promise<void> {
     { label: '$(add) 添加中转站 / 服务商', action: 'add' },
     { label: '$(edit) 修改中转站名字 / 端点地址', action: 'edit' },
     { label: '$(key) 设置 / 更换 API Key', action: 'apiKey' },
-    { label: '$(refresh) 刷新服务商模型列表', action: 'refresh' },
-    { label: '$(pulse) 测试服务商连通状态', action: 'test' },
-    { label: '$(trash) 删除自定义服务商', action: 'remove' }
+    { label: '$(refresh) 刷新全部中转站模型列表', action: 'refresh' },
+    { label: '$(pulse) 测试中转站连通状态', action: 'test' },
+    { label: '$(trash) 删除中转站', action: 'remove' }
   ];
 
   const picked = await vscode.window.showQuickPick(actions, { placeHolder: '请选择中转站管理操作' });
@@ -468,7 +488,7 @@ async function handleManageProviders(): Promise<void> {
   } else if (picked.action === 'test') {
     await handleTestProvider();
   } else if (picked.action === 'remove') {
-    await promptRemoveProvider();
+    await handleDeleteProviderDirectly();
   }
 }
 
@@ -533,17 +553,18 @@ async function promptAddCustomProvider(): Promise<void> {
   }
 
   registry.register(newProvider);
+  syncCatalogToCodex();
   refreshAllViews();
-  vscode.window.showInformationMessage(`服务商 "${name}" (${id}) 添加成功。`);
+  vscode.window.showInformationMessage(`中转站 "${name}" (${id}) 添加成功并已激活生效。`);
 
-  // 尝试自动发现模型
+  // 自动拉取发现模型
   try {
     const discovered = await ModelDiscovery.discover(newProvider, apiKey);
     if (discovered.length > 0) {
       registry.updateModels(id, discovered);
       syncCatalogToCodex();
       refreshAllViews();
-      vscode.window.showInformationMessage(`自动从 "${name}" 发现了 ${discovered.length} 个模型并已注册。`);
+      vscode.window.showInformationMessage(`自动从 "${name}" 发现了 ${discovered.length} 个模型并已注入 Codex。`);
     }
   } catch (err: any) {
     outputChannel.appendLine(`添加服务商后的自动发现提示: ${err.message}`);
@@ -553,24 +574,28 @@ async function promptAddCustomProvider(): Promise<void> {
 /**
  * 修改服务商信息（允许自定义名字和端点 URL）
  */
-async function promptEditProvider(): Promise<void> {
-  const providers = registry.list();
-  if (providers.length === 0) {
-    vscode.window.showInformationMessage('暂未配置任何服务商。');
-    return;
+async function promptEditProvider(element?: ProviderTreeElement): Promise<void> {
+  let selected: ProviderConfig | undefined;
+  if (element && element.type === 'provider') {
+    selected = element.provider;
+  } else {
+    const providers = registry.list();
+    if (providers.length === 0) {
+      vscode.window.showInformationMessage('暂未配置任何服务商。');
+      return;
+    }
+    selected = await QuickPickController.selectProvider(providers);
   }
-
-  const selected = await QuickPickController.selectProvider(providers);
   if (!selected) return;
 
   const newName = await vscode.window.showInputBox({
-    prompt: `修改服务商 "${selected.name}" 的显示名称:`,
+    prompt: `修改中转站 "${selected.name}" 的显示名称:`,
     value: selected.name
   });
   if (!newName) return;
 
   const newUrl = await vscode.window.showInputBox({
-    prompt: `修改服务商端点 URL:`,
+    prompt: `修改中转站端点 URL:`,
     value: selected.baseUrl,
     validateInput: v => (v && (v.startsWith('http://') || v.startsWith('https://')) ? null : '必须以 http:// 或 https:// 开头')
   });
@@ -581,8 +606,40 @@ async function promptEditProvider(): Promise<void> {
     baseUrl: newUrl
   });
 
+  syncCatalogToCodex();
   refreshAllViews();
-  vscode.window.showInformationMessage(`服务商信息已更新为: ${newName} (${newUrl})`);
+  vscode.window.showInformationMessage(`中转站信息已更新为: ${newName} (${newUrl})`);
+}
+
+/**
+ * 一键删除服务商（支持侧栏 inline 按钮直接点击）
+ */
+async function handleDeleteProviderDirectly(element?: ProviderTreeElement): Promise<void> {
+  let selected: ProviderConfig | undefined;
+  if (element && element.type === 'provider') {
+    selected = element.provider;
+  } else {
+    const providers = registry.list();
+    if (providers.length === 0) {
+      vscode.window.showInformationMessage('暂无中转站可删除。');
+      return;
+    }
+    selected = await QuickPickController.selectProvider(providers);
+  }
+  if (!selected) return;
+
+  const confirm = await vscode.window.showWarningMessage(
+    `确定要删除中转站 "${selected.name}" (${selected.id}) 吗？此操作将彻底移除该站点及其在 Codex 中的配置。`,
+    { modal: true },
+    '确认删除'
+  );
+  if (confirm === '确认删除') {
+    registry.unregister(selected.id);
+    await secretManager.deleteSecret(`provider.${selected.id}.apiKey`);
+    syncCatalogToCodex();
+    refreshAllViews();
+    vscode.window.showInformationMessage(`中转站 "${selected.name}" 已成功删除。`);
+  }
 }
 
 async function promptSetApiKey(): Promise<void> {
@@ -599,29 +656,6 @@ async function promptSetApiKey(): Promise<void> {
   await secretManager.storeSecret(`provider.${selected.id}.apiKey`, key);
   refreshAllViews();
   vscode.window.showInformationMessage(`${selected.name} 的 API Key 已安全更新。`);
-}
-
-async function promptRemoveProvider(): Promise<void> {
-  const providers = registry.list();
-  if (providers.length === 0) {
-    vscode.window.showInformationMessage('暂无服务商可删除。');
-    return;
-  }
-
-  const selected = await QuickPickController.selectProvider(providers);
-  if (!selected) return;
-
-  const confirm = await vscode.window.showWarningMessage(
-    `确定要删除服务商 "${selected.name}" 吗？该操作同时会从 config.toml 中移除该配置。`,
-    { modal: true },
-    '确认删除'
-  );
-  if (confirm === '确认删除') {
-    registry.unregister(selected.id);
-    await secretManager.deleteSecret(`provider.${selected.id}.apiKey`);
-    refreshAllViews();
-    vscode.window.showInformationMessage(`服务商 "${selected.name}" 已成功删除。`);
-  }
 }
 
 async function handleManageProfiles(): Promise<void> {

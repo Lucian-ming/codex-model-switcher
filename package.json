@@ -2,7 +2,7 @@
   "name": "codex-model-switcher",
   "displayName": "Codex 模型切换器",
   "description": "在 VS Code 中自由管理与切换 OpenAI Codex 的第三方中转站、模型、推理强度与配置预设。",
-  "version": "0.2.1",
+  "version": "0.2.2",
   "publisher": "codex-model-switcher",
   "icon": "resources/icon.png",
   "repository": {
@@ -65,7 +65,7 @@
     "commands": [
       {
         "command": "codexModelSwitcher.switchModel",
-        "title": "Codex: 切换模型",
+        "title": "Codex: 切换模型 (跨中转站)",
         "category": "Codex"
       },
       {
@@ -95,31 +95,37 @@
       },
       {
         "command": "codexModelSwitcher.refreshModels",
-        "title": "Codex: 刷新服务商模型列表",
+        "title": "Codex: 刷新全部中转站模型",
         "icon": "$(refresh)",
         "category": "Codex"
       },
       {
         "command": "codexModelSwitcher.testProvider",
-        "title": "Codex: 测试服务商连通状态",
+        "title": "Codex: 测试中转站连通性",
         "icon": "$(pulse)",
         "category": "Codex"
       },
       {
         "command": "codexModelSwitcher.manageProviders",
-        "title": "Codex: 管理服务商 (添加/改名/换Key/删除)",
+        "title": "Codex: 管理中转站 (添加/改名/删除/换Key)",
         "category": "Codex"
       },
       {
         "command": "codexModelSwitcher.addProvider",
-        "title": "Codex: 添加中转站 / 服务商",
+        "title": "Codex: 添加中转站",
         "icon": "$(add)",
         "category": "Codex"
       },
       {
         "command": "codexModelSwitcher.editProvider",
-        "title": "Codex: 修改中转站名字或端点",
+        "title": "Codex: 修改中转站名称/地址",
         "icon": "$(edit)",
+        "category": "Codex"
+      },
+      {
+        "command": "codexModelSwitcher.deleteProviderDirectly",
+        "title": "Codex: 删除该中转站",
+        "icon": "$(trash)",
         "category": "Codex"
       },
       {
@@ -179,12 +185,17 @@
         {
           "command": "codexModelSwitcher.editProvider",
           "when": "view == codexModelSwitcher.providers && viewItem =~ /Provider/",
-          "group": "inline"
+          "group": "inline@1"
         },
         {
           "command": "codexModelSwitcher.testProvider",
           "when": "view == codexModelSwitcher.providers && viewItem =~ /Provider/",
-          "group": "inline"
+          "group": "inline@2"
+        },
+        {
+          "command": "codexModelSwitcher.deleteProviderDirectly",
+          "when": "view == codexModelSwitcher.providers && viewItem =~ /Provider/",
+          "group": "inline@3"
         },
         {
           "command": "codexModelSwitcher.overrideContextWindow",
@@ -207,7 +218,7 @@
         "codexModelSwitcher.autoInjectCatalog": {
           "type": "boolean",
           "default": true,
-          "description": "自动将发现的第三方模型导出至 ~/.codex/model_catalog.json，使官方 Codex 扩展原生生效。"
+          "description": "自动将已配置的各中转站模型合并导出至 ~/.codex/model_catalog.json，使官方 Codex 扩展原生可直接多站切换。"
         },
         "codexModelSwitcher.autoRefreshIntervalMinutes": {
           "type": "number",
