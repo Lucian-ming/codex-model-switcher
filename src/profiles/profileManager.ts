@@ -3,6 +3,8 @@ import * as path from 'path';
 import * as os from 'os';
 import { Profile } from './types.js';
 import { CodexConfigManager } from '../codex/configManager.js';
+import { ModelProfile } from '../models/types.js';
+import { ReasoningManager } from '../models/reasoningManager.js';
 
 export class ProfileManager {
   private profiles: Map<string, Profile> = new Map();
@@ -26,6 +28,14 @@ export class ProfileManager {
         reasoningEffort: 'max',
         description: 'Official OpenAI high-reasoning development profile',
         isDefault: true
+      },
+      {
+        id: 'fast-coding',
+        name: 'Fast Coding (GPT-5.5)',
+        providerId: 'OpenAI',
+        modelId: 'gpt-5.5',
+        reasoningEffort: 'low',
+        description: 'Fast, responsive coding with light reasoning'
       },
       {
         id: 'openrouter-claude',
@@ -78,7 +88,40 @@ export class ProfileManager {
     return this.profiles.get(id);
   }
 
-  public saveProfile(profile: Profile): void {
+  /**
+   * Validates a profile against target model reasoning constraints.
+   */
+  public validateProfile(profile: Profile, availableModels?: ModelProfile[]): { valid: boolean; error?: string } {
+    if (!profile.name || !profile.name.trim()) {
+      return { valid: false, error: 'Profile name cannot be empty.' };
+    }
+    if (!profile.providerId || !profile.modelId) {
+      return { valid: false, error: 'Provider ID and Model ID are required.' };
+    }
+
+    if (availableModels && availableModels.length > 0) {
+      const match = availableModels.find(
+        m => m.modelId === profile.modelId && (!m.providerId || m.providerId === profile.providerId)
+      );
+      if (match && profile.reasoningEffort) {
+        if (!ReasoningManager.isEffortSupported(match, profile.reasoningEffort)) {
+          const supported = match.supportedReasoningLevels?.map(l => l.effort).join(', ') || 'none';
+          return {
+            valid: false,
+            error: `Model "${match.displayName}" does not support reasoning effort "${profile.reasoningEffort}". Supported tiers are: [${supported}].`
+          };
+        }
+      }
+    }
+
+    return { valid: true };
+  }
+
+  public saveProfile(profile: Profile, availableModels?: ModelProfile[]): void {
+    const validation = this.validateProfile(profile, availableModels);
+    if (!validation.valid) {
+      throw new Error(validation.error);
+    }
     this.profiles.set(profile.id, profile);
     this.persist();
   }

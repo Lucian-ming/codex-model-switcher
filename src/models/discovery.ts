@@ -1,5 +1,6 @@
-import { ModelProfile, ReasoningLevelOption } from './types.js';
+import { ModelProfile } from './types.js';
 import { ProviderConfig } from '../providers/types.js';
+import { ReasoningManager } from './reasoningManager.js';
 
 export class ModelDiscovery {
   public static async discover(provider: ProviderConfig, apiKey?: string): Promise<ModelProfile[]> {
@@ -49,33 +50,27 @@ export class ModelDiscovery {
     const modelId = typeof raw === 'string' ? raw : (raw.id || raw.name || raw.slug || `model-${index}`);
     const displayName = raw.display_name || raw.displayName || raw.name || this.formatDisplayName(modelId);
 
-    const isReasoning = this.isReasoningModel(modelId);
-    const contextWindow = raw.context_window || raw.contextWindow || this.guessContextWindow(modelId);
-
-    let supportedReasoningLevels: ReasoningLevelOption[] | undefined;
-    let defaultReasoningLevel: 'low' | 'medium' | 'high' | 'xhigh' | 'max' | 'ultra' | undefined;
-
-    if (isReasoning) {
-      supportedReasoningLevels = [
-        { effort: 'low', description: 'Fast responses with lighter reasoning' },
-        { effort: 'medium', description: 'Balanced speed and reasoning depth' },
-        { effort: 'high', description: 'Greater reasoning depth' },
-        { effort: 'max', description: 'Maximum reasoning depth' }
-      ];
-      defaultReasoningLevel = 'medium';
-    }
+    const reasoningInfo = ReasoningManager.inferReasoningCapabilities(modelId);
+    const discoveredContext = raw.context_window || raw.contextWindow;
+    const contextWindow = discoveredContext || this.guessContextWindow(modelId);
 
     return {
-      id: `${providerId.toLowerCase()}-${modelId.replace(/[^a-zA-Z0-9_\-\.]/g, '-')}`,
+      id: `${providerId}:${modelId}`,
       providerId,
       modelId,
       displayName,
       description: raw.description || `${displayName} via ${providerId}`,
       contextWindow,
+      contextWindowInfo: {
+        value: contextWindow,
+        source: discoveredContext ? 'discovered' : 'default',
+        discoveredValue: contextWindow
+      },
       maxContextWindow: contextWindow,
       effectiveContextWindowPercent: 95,
-      defaultReasoningLevel,
-      supportedReasoningLevels,
+      reasoningInfo,
+      defaultReasoningLevel: reasoningInfo.defaultLevel,
+      supportedReasoningLevels: reasoningInfo.levels,
       inputModalities: ['text', 'image'],
       supportsSearchTool: true,
       supportsApplyPatch: true,
@@ -84,12 +79,12 @@ export class ModelDiscovery {
       toolMode: 'native',
       priority: index + 1,
       visibility: 'list',
-      enabled: true
+      enabled: true,
+      healthStatus: 'available'
     };
   }
 
   private static formatDisplayName(modelId: string): string {
-    // Convert 'anthropic/claude-3-7-sonnet' -> 'Claude 3.7 Sonnet'
     const parts = modelId.split('/');
     const clean = parts[parts.length - 1];
     return clean
@@ -98,27 +93,14 @@ export class ModelDiscovery {
       .join(' ');
   }
 
-  private static isReasoningModel(modelId: string): boolean {
-    const lower = modelId.toLowerCase();
-    return (
-      lower.includes('reasoner') ||
-      lower.includes('r1') ||
-      lower.includes('o1') ||
-      lower.includes('o3') ||
-      lower.includes('o4') ||
-      lower.includes('thinking') ||
-      lower.includes('gpt-5.6') ||
-      lower.includes('sonnet-3-7') ||
-      lower.includes('sonnet-3.7')
-    );
-  }
-
   private static guessContextWindow(modelId: string): number {
     const lower = modelId.toLowerCase();
     if (lower.includes('kimi') || lower.includes('moonshot')) return 256000;
+    if (lower.includes('grok')) return 128000;
     if (lower.includes('claude')) return 200000;
     if (lower.includes('deepseek')) return 128000;
     if (lower.includes('qwen')) return 128000;
+    if (lower.includes('gpt-5.6')) return 272000;
     if (lower.includes('gpt-4o') || lower.includes('gpt-4.5') || lower.includes('gpt-5')) return 128000;
     if (lower.includes('gemini')) return 1000000;
     return 128000;

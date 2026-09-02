@@ -4,7 +4,10 @@ export interface Profile {
   providerId: string;
   modelId: string;
   reviewModelId?: string;
-  reasoningEffort?: 'low' | 'medium' | 'high' | 'xhigh' | 'max' | 'ultra';
+  reasoningEffort?: 'none' | 'low' | 'medium' | 'high' | 'xhigh' | 'max' | 'ultra' | string;
+  contextWindow?: number;
   description?: string;
   isDefault?: boolean;
 }
+
+export type CodexProfile = Profile;

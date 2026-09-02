@@ -8,12 +8,19 @@ import { ProfileManager } from './profiles/profileManager.js';
 import { ModelCache } from './models/cache.js';
 import { ModelDiscovery } from './models/discovery.js';
 import { CatalogExporter } from './models/catalogExporter.js';
+import { ContextOverrideManager } from './models/contextOverride.js';
+import { ReasoningManager } from './models/reasoningManager.js';
 import { ProviderTester } from './providers/tester.js';
 import { StatusBarController } from './ui/statusBar.js';
 import { QuickPickController } from './ui/quickPick.js';
 import { DiagnosticsRunner } from './commands/diagnose.js';
+import { CurrentConfigTreeProvider } from './ui/currentView.js';
+import { ProvidersTreeProvider } from './ui/providersView.js';
+import { ProfilesTreeProvider } from './ui/profilesView.js';
+import { SettingsTreeProvider } from './ui/settingsView.js';
 import { ProviderConfig } from './providers/types.js';
 import { ModelProfile } from './models/types.js';
+import { CodexProfile } from './profiles/types.js';
 
 let outputChannel: vscode.OutputChannel;
 let statusBar: StatusBarController;
@@ -22,10 +29,16 @@ let secretManager: SecretManager;
 let registry: ProviderRegistry;
 let profileManager: ProfileManager;
 let modelCache: ModelCache;
+let overrideManager: ContextOverrideManager;
+
+let currentTreeProvider: CurrentConfigTreeProvider;
+let providersTreeProvider: ProvidersTreeProvider;
+let profilesTreeProvider: ProfilesTreeProvider;
+let settingsTreeProvider: SettingsTreeProvider;
 
 export function activate(context: vscode.ExtensionContext) {
   outputChannel = vscode.window.createOutputChannel('Codex Model Switcher');
-  outputChannel.appendLine('Activating Codex Model Switcher...');
+  outputChannel.appendLine('Activating Codex Model Switcher v0.2.0...');
 
   const env = PathResolver.resolve();
   outputChannel.appendLine(`Environment resolved: Platform=${env.platform}, WSL=${env.isWsl}, Distro=${env.wslDistro || 'none'}`);
@@ -36,17 +49,31 @@ export function activate(context: vscode.ExtensionContext) {
   registry = new ProviderRegistry(configManager);
   profileManager = new ProfileManager(configManager);
   modelCache = new ModelCache();
+  overrideManager = new ContextOverrideManager();
   statusBar = new StatusBarController(configManager);
+
+  // Initialize Sidebar Tree Providers
+  currentTreeProvider = new CurrentConfigTreeProvider(configManager, registry, overrideManager);
+  providersTreeProvider = new ProvidersTreeProvider(configManager, registry, overrideManager);
+  profilesTreeProvider = new ProfilesTreeProvider(profileManager);
+  settingsTreeProvider = new SettingsTreeProvider();
+
+  // Register Sidebar Views
+  context.subscriptions.push(
+    vscode.window.registerTreeDataProvider('codexModelSwitcher.current', currentTreeProvider),
+    vscode.window.registerTreeDataProvider('codexModelSwitcher.providers', providersTreeProvider),
+    vscode.window.registerTreeDataProvider('codexModelSwitcher.profiles', profilesTreeProvider),
+    vscode.window.registerTreeDataProvider('codexModelSwitcher.settings', settingsTreeProvider)
+  );
 
   // File watcher on ~/.codex/config.toml to stay synchronized with external edits
   try {
-    const configUri = vscode.Uri.file(env.configTomlPath);
     const watcher = vscode.workspace.createFileSystemWatcher(
       new vscode.RelativePattern(vscode.Uri.file(env.codexHome), 'config.toml')
     );
     watcher.onDidChange(() => {
-      outputChannel.appendLine('Detected external modification to config.toml, refreshing status bar...');
-      statusBar.update();
+      outputChannel.appendLine('Detected external modification to config.toml, refreshing views...');
+      refreshAllViews();
     });
     context.subscriptions.push(watcher);
   } catch (err) {
@@ -64,13 +91,19 @@ export function activate(context: vscode.ExtensionContext) {
     vscode.commands.registerCommand('codexModelSwitcher.switchModel', handleSwitchModel),
     vscode.commands.registerCommand('codexModelSwitcher.switchProvider', handleSwitchProvider),
     vscode.commands.registerCommand('codexModelSwitcher.switchProfile', handleSwitchProfile),
+    vscode.commands.registerCommand('codexModelSwitcher.adjustReasoningEffort', handleAdjustReasoningEffort),
+    vscode.commands.registerCommand('codexModelSwitcher.overrideContextWindow', handleOverrideContextWindow),
+    vscode.commands.registerCommand('codexModelSwitcher.resetContextWindow', handleResetContextWindow),
     vscode.commands.registerCommand('codexModelSwitcher.refreshModels', handleRefreshModels),
     vscode.commands.registerCommand('codexModelSwitcher.testProvider', handleTestProvider),
     vscode.commands.registerCommand('codexModelSwitcher.manageProviders', handleManageProviders),
+    vscode.commands.registerCommand('codexModelSwitcher.addProvider', promptAddCustomProvider),
     vscode.commands.registerCommand('codexModelSwitcher.manageProfiles', handleManageProfiles),
     vscode.commands.registerCommand('codexModelSwitcher.openConfig', handleOpenConfig),
     vscode.commands.registerCommand('codexModelSwitcher.restoreConfig', handleRestoreConfig),
-    vscode.commands.registerCommand('codexModelSwitcher.diagnose', handleDiagnose)
+    vscode.commands.registerCommand('codexModelSwitcher.diagnose', handleDiagnose),
+    vscode.commands.registerCommand('codexModelSwitcher.activateModelDirectly', handleActivateModelDirectly),
+    vscode.commands.registerCommand('codexModelSwitcher.applyProfileDirectly', handleApplyProfileDirectly)
   );
 
   context.subscriptions.push(statusBar);
@@ -81,6 +114,13 @@ export function deactivate() {
   if (statusBar) {
     statusBar.dispose();
   }
+}
+
+function refreshAllViews(): void {
+  if (currentTreeProvider) currentTreeProvider.refresh();
+  if (providersTreeProvider) providersTreeProvider.refresh();
+  if (profilesTreeProvider) profilesTreeProvider.refresh();
+  if (statusBar) statusBar.update();
 }
 
 /**
@@ -105,8 +145,10 @@ function syncCatalogToCodex(): void {
     }
 
     if (allModels.length > 0) {
-      CatalogExporter.exportCatalog(allModels, undefined, configManager);
-      outputChannel.appendLine(`Synchronized ${allModels.length} models to Codex model catalog.`);
+      // Apply user context window overrides
+      const effectiveModels = overrideManager.applyToModels(allModels);
+      CatalogExporter.exportCatalog(effectiveModels, undefined, configManager);
+      outputChannel.appendLine(`Synchronized ${effectiveModels.length} models to Codex model catalog.`);
     }
   } catch (err: any) {
     outputChannel.appendLine(`Failed to sync model catalog: ${err.message}`);
@@ -117,7 +159,6 @@ async function handleSwitchModel(): Promise<void> {
   const currentModel = configManager.getCurrentModel();
   const currentProviderId = configManager.getCurrentProvider();
 
-  // Aggregate models from active provider or all providers
   let candidateModels: ModelProfile[] = [];
   const activeProvider = currentProviderId ? registry.get(currentProviderId) : undefined;
 
@@ -125,7 +166,6 @@ async function handleSwitchModel(): Promise<void> {
     candidateModels.push(...activeProvider.models);
   }
 
-  // Also include models from other providers
   for (const p of registry.list()) {
     if (p.id !== currentProviderId && p.models) {
       candidateModels.push(...p.models);
@@ -149,23 +189,39 @@ async function handleSwitchModel(): Promise<void> {
   const selected = await QuickPickController.selectModel(candidateModels, currentModel, currentProviderId);
   if (!selected) return;
 
-  try {
-    // 1. Update config.toml
-    configManager.setModel(selected.modelId);
+  await handleActivateModelDirectly(selected);
+}
 
-    // If model belongs to another provider, switch active provider as well
-    if (selected.providerId && selected.providerId !== currentProviderId) {
-      configManager.setProvider(selected.providerId);
+async function handleActivateModelDirectly(selected: ModelProfile): Promise<void> {
+  const currentProviderId = configManager.getCurrentProvider();
+  const currentEffort = configManager.read().model_reasoning_effort || 'default';
+
+  try {
+    // 1. Adaptive Reasoning Fallback
+    const fallback = ReasoningManager.adaptEffortOnSwitch(currentEffort, selected);
+    if (fallback.didFallback && fallback.reason) {
+      vscode.window.showWarningMessage(fallback.reason);
     }
 
-    // 2. Export updated catalog
-    syncCatalogToCodex();
+    // 2. Update config.toml
+    const cfg = configManager.read();
+    cfg.model = selected.modelId;
+    if (selected.providerId && selected.providerId !== currentProviderId) {
+      cfg.model_provider = selected.providerId;
+    }
+    if (fallback.effort && fallback.effort !== 'none') {
+      cfg.model_reasoning_effort = fallback.effort;
+    } else {
+      delete cfg.model_reasoning_effort;
+    }
+    configManager.write(cfg);
 
-    // 3. Update status bar
-    statusBar.update();
+    // 3. Export updated catalog & refresh views
+    syncCatalogToCodex();
+    refreshAllViews();
 
     vscode.window.showInformationMessage(
-      `Codex active model set to: ${selected.displayName} (${selected.modelId})`
+      `Codex active model set to: ${selected.displayName} (${selected.modelId}) [Reasoning: ${fallback.effort}]`
     );
   } catch (err: any) {
     vscode.window.showErrorMessage(`Failed to switch model: ${err.message}`);
@@ -182,17 +238,104 @@ async function handleSwitchProvider(): Promise<void> {
   try {
     configManager.setProvider(selected.id);
 
-    // If provider has default models, select the first one
     if (selected.models && selected.models.length > 0) {
-      configManager.setModel(selected.models[0].modelId);
+      await handleActivateModelDirectly(selected.models[0]);
+    } else {
+      syncCatalogToCodex();
+      refreshAllViews();
+      vscode.window.showInformationMessage(`Codex active provider set to: ${selected.name}`);
     }
-
-    syncCatalogToCodex();
-    statusBar.update();
-
-    vscode.window.showInformationMessage(`Codex active provider set to: ${selected.name}`);
   } catch (err: any) {
     vscode.window.showErrorMessage(`Failed to switch provider: ${err.message}`);
+  }
+}
+
+async function handleAdjustReasoningEffort(): Promise<void> {
+  const currentModelId = configManager.getCurrentModel() || 'gpt-5.6-sol';
+  const currentProviderId = configManager.getCurrentProvider();
+  const provider = currentProviderId ? registry.get(currentProviderId) : undefined;
+  const modelProfile = provider?.models?.find(m => m.modelId === currentModelId);
+
+  const reasoningInfo = modelProfile?.reasoningInfo || ReasoningManager.inferReasoningCapabilities(currentModelId);
+
+  if (!reasoningInfo.supported || reasoningInfo.levels.length === 0) {
+    vscode.window.showInformationMessage(`Model "${currentModelId}" does not support reasoning effort configuration.`);
+    return;
+  }
+
+  const currentEffort = configManager.read().model_reasoning_effort || reasoningInfo.defaultLevel;
+  const items = reasoningInfo.levels.map(l => ({
+    label: `${l.effort === currentEffort ? '● ' : ''}${l.effort}`,
+    description: l.description,
+    effort: l.effort
+  }));
+
+  const selected = await vscode.window.showQuickPick(items, {
+    placeHolder: `Select Reasoning Effort for ${currentModelId} (Current: ${currentEffort})`
+  });
+  if (!selected) return;
+
+  try {
+    const cfg = configManager.read();
+    cfg.model_reasoning_effort = selected.effort;
+    configManager.write(cfg);
+
+    refreshAllViews();
+    vscode.window.showInformationMessage(`Reasoning effort set to: ${selected.effort}`);
+  } catch (err: any) {
+    vscode.window.showErrorMessage(`Failed to adjust reasoning effort: ${err.message}`);
+  }
+}
+
+async function handleOverrideContextWindow(): Promise<void> {
+  const currentModelId = configManager.getCurrentModel() || 'gpt-5.6-sol';
+  const currentProviderId = configManager.getCurrentProvider() || 'OpenAI';
+  const provider = registry.get(currentProviderId);
+  const model = provider?.models?.find(m => m.modelId === currentModelId);
+
+  const discoveredTokens = model?.contextWindow || 128000;
+  const currentOverride = overrideManager.getOverride(currentProviderId, currentModelId);
+  const currentTokens = currentOverride !== undefined ? currentOverride : discoveredTokens;
+
+  const input = await vscode.window.showInputBox({
+    prompt: `Enter Context Window for ${currentModelId} (e.g. 128K, 200K, 256K, 1M, or raw integer tokens)`,
+    value: ContextOverrideManager.formatTokens(currentTokens),
+    validateInput: val => {
+      const parsed = ContextOverrideManager.parseTokenInput(val);
+      if (!parsed || parsed < 1000) {
+        return 'Please enter a valid token count (e.g. 128K, 200K, 1M, or positive integer >= 1000)';
+      }
+      return null;
+    }
+  });
+  if (!input) return;
+
+  const tokens = ContextOverrideManager.parseTokenInput(input);
+  if (!tokens) return;
+
+  try {
+    overrideManager.setOverride(currentProviderId, currentModelId, tokens);
+    syncCatalogToCodex();
+    refreshAllViews();
+    vscode.window.showInformationMessage(
+      `Context window for ${currentModelId} overridden to ${ContextOverrideManager.formatTokens(tokens)} (${tokens} tokens).`
+    );
+  } catch (err: any) {
+    vscode.window.showErrorMessage(`Failed to override context window: ${err.message}`);
+  }
+}
+
+async function handleResetContextWindow(): Promise<void> {
+  const currentModelId = configManager.getCurrentModel() || 'gpt-5.6-sol';
+  const currentProviderId = configManager.getCurrentProvider() || 'OpenAI';
+
+  const existed = overrideManager.resetOverride(currentProviderId, currentModelId);
+  if (existed) {
+    syncCatalogToCodex();
+    refreshAllViews();
+    vscode.window.showInformationMessage(`Reset context window for ${currentModelId} to discovered value.`);
+  } else {
+    vscode.window.showInformationMessage(`No user override exists for ${currentModelId}.`);
   }
 }
 
@@ -210,11 +353,15 @@ async function handleSwitchProfile(): Promise<void> {
   });
   if (!selected) return;
 
+  await handleApplyProfileDirectly(selected.profile);
+}
+
+async function handleApplyProfileDirectly(profile: CodexProfile): Promise<void> {
   try {
-    profileManager.applyProfile(selected.profile);
+    profileManager.applyProfile(profile);
     syncCatalogToCodex();
-    statusBar.update();
-    vscode.window.showInformationMessage(`Applied profile: ${selected.profile.name}`);
+    refreshAllViews();
+    vscode.window.showInformationMessage(`Applied profile: ${profile.name}`);
   } catch (err: any) {
     vscode.window.showErrorMessage(`Failed to apply profile: ${err.message}`);
   }
@@ -248,6 +395,7 @@ async function handleRefreshModels(): Promise<void> {
         registry.updateModels(provider.id, discovered);
         modelCache.set(provider.id, discovered);
         syncCatalogToCodex();
+        refreshAllViews();
 
         vscode.window.showInformationMessage(
           `Successfully refreshed ${discovered.length} models from ${provider.name}.`
@@ -275,6 +423,7 @@ async function handleTestProvider(): Promise<void> {
       const health = await ProviderTester.test(selected, apiKey);
 
       registry.updateHealth(selected.id, health.latencyMs, health.reachable && health.authValid);
+      refreshAllViews();
 
       if (health.reachable && health.authValid) {
         vscode.window.showInformationMessage(
@@ -357,6 +506,7 @@ async function promptAddCustomProvider(): Promise<void> {
   }
 
   registry.register(newProvider);
+  refreshAllViews();
   vscode.window.showInformationMessage(`Custom provider "${name}" registered successfully.`);
 
   // Auto-discover models
@@ -365,6 +515,7 @@ async function promptAddCustomProvider(): Promise<void> {
     if (discovered.length > 0) {
       registry.updateModels(id, discovered);
       syncCatalogToCodex();
+      refreshAllViews();
       vscode.window.showInformationMessage(`Discovered and registered ${discovered.length} models for ${name}.`);
     }
   } catch (err: any) {
@@ -384,6 +535,7 @@ async function promptSetApiKey(): Promise<void> {
   if (!key) return;
 
   await secretManager.storeSecret(`provider.${selected.id}.apiKey`, key);
+  refreshAllViews();
   vscode.window.showInformationMessage(`API Key for ${selected.name} updated securely.`);
 }
 
@@ -405,6 +557,7 @@ async function promptRemoveProvider(): Promise<void> {
   if (confirm === 'Delete') {
     registry.unregister(selected.id);
     await secretManager.deleteSecret(`provider.${selected.id}.apiKey`);
+    refreshAllViews();
     vscode.window.showInformationMessage(`Provider "${selected.name}" removed.`);
   }
 }
@@ -432,15 +585,22 @@ async function handleManageProfiles(): Promise<void> {
 
     const currentProvider = configManager.getCurrentProvider() || 'OpenAI';
     const currentModel = configManager.getCurrentModel() || 'gpt-5.6-sol';
+    const currentReasoning = configManager.read().model_reasoning_effort || 'medium';
 
-    profileManager.saveProfile({
-      id: `profile-${Date.now()}`,
-      name,
-      providerId: currentProvider,
-      modelId: currentModel,
-      description: `Saved from active settings: ${currentProvider} / ${currentModel}`
-    });
-    vscode.window.showInformationMessage(`Profile "${name}" created.`);
+    try {
+      profileManager.saveProfile({
+        id: `profile-${Date.now()}`,
+        name,
+        providerId: currentProvider,
+        modelId: currentModel,
+        reasoningEffort: currentReasoning as any,
+        description: `Saved from active settings: ${currentProvider} / ${currentModel} [${currentReasoning}]`
+      });
+      refreshAllViews();
+      vscode.window.showInformationMessage(`Profile "${name}" created.`);
+    } catch (err: any) {
+      vscode.window.showErrorMessage(`Cannot save profile: ${err.message}`);
+    }
   }
 }
 
@@ -475,7 +635,7 @@ async function handleRestoreConfig(): Promise<void> {
 
   try {
     configManager.restoreBackup(selected.backup.filePath);
-    statusBar.update();
+    refreshAllViews();
     vscode.window.showInformationMessage(`Restored configuration from ${selected.backup.filename}`);
   } catch (err: any) {
     vscode.window.showErrorMessage(`Failed to restore backup: ${err.message}`);

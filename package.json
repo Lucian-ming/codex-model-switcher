@@ -2,8 +2,9 @@
   "name": "codex-model-switcher",
   "displayName": "Codex Model Switcher",
   "description": "Seamlessly manage and switch multiple third-party AI providers, models, and profiles for OpenAI Codex in VS Code.",
-  "version": "0.1.0",
+  "version": "0.2.0",
   "publisher": "codex-model-switcher",
+  "icon": "resources/icon.png",
   "repository": {
     "type": "git",
     "url": "https://github.com/codex-model-switcher/codex-model-switcher"
@@ -32,6 +33,35 @@
     "onStartupFinished"
   ],
   "contributes": {
+    "viewsContainers": {
+      "activitybar": [
+        {
+          "id": "codex-model-switcher",
+          "title": "Codex Model Switcher",
+          "icon": "resources/codex-icon.svg"
+        }
+      ]
+    },
+    "views": {
+      "codex-model-switcher": [
+        {
+          "id": "codexModelSwitcher.current",
+          "name": "Current Active State"
+        },
+        {
+          "id": "codexModelSwitcher.providers",
+          "name": "Providers & Models"
+        },
+        {
+          "id": "codexModelSwitcher.profiles",
+          "name": "Profiles"
+        },
+        {
+          "id": "codexModelSwitcher.settings",
+          "name": "Tools & Settings"
+        }
+      ]
+    },
     "commands": [
       {
         "command": "codexModelSwitcher.switchModel",
@@ -49,13 +79,30 @@
         "category": "Codex"
       },
       {
+        "command": "codexModelSwitcher.adjustReasoningEffort",
+        "title": "Codex: Adjust Reasoning Effort",
+        "category": "Codex"
+      },
+      {
+        "command": "codexModelSwitcher.overrideContextWindow",
+        "title": "Codex: Override Context Window",
+        "category": "Codex"
+      },
+      {
+        "command": "codexModelSwitcher.resetContextWindow",
+        "title": "Codex: Reset Context Window to Discovered",
+        "category": "Codex"
+      },
+      {
         "command": "codexModelSwitcher.refreshModels",
         "title": "Codex: Refresh Models",
+        "icon": "$(refresh)",
         "category": "Codex"
       },
       {
         "command": "codexModelSwitcher.testProvider",
         "title": "Codex: Test Provider Connection",
+        "icon": "$(pulse)",
         "category": "Codex"
       },
       {
@@ -64,8 +111,15 @@
         "category": "Codex"
       },
       {
+        "command": "codexModelSwitcher.addProvider",
+        "title": "Codex: Add Provider",
+        "icon": "$(add)",
+        "category": "Codex"
+      },
+      {
         "command": "codexModelSwitcher.manageProfiles",
         "title": "Codex: Manage Profiles",
+        "icon": "$(add)",
         "category": "Codex"
       },
       {
@@ -82,8 +136,52 @@
         "command": "codexModelSwitcher.diagnose",
         "title": "Codex: Diagnose Environment & Configuration",
         "category": "Codex"
+      },
+      {
+        "command": "codexModelSwitcher.activateModelDirectly",
+        "title": "Codex: Activate Model Directly"
+      },
+      {
+        "command": "codexModelSwitcher.applyProfileDirectly",
+        "title": "Codex: Apply Profile Directly"
       }
     ],
+    "menus": {
+      "view/title": [
+        {
+          "command": "codexModelSwitcher.switchModel",
+          "when": "view == codexModelSwitcher.current",
+          "group": "navigation"
+        },
+        {
+          "command": "codexModelSwitcher.addProvider",
+          "when": "view == codexModelSwitcher.providers",
+          "group": "navigation"
+        },
+        {
+          "command": "codexModelSwitcher.refreshModels",
+          "when": "view == codexModelSwitcher.providers",
+          "group": "navigation"
+        },
+        {
+          "command": "codexModelSwitcher.manageProfiles",
+          "when": "view == codexModelSwitcher.profiles",
+          "group": "navigation"
+        }
+      ],
+      "view/item/context": [
+        {
+          "command": "codexModelSwitcher.testProvider",
+          "when": "view == codexModelSwitcher.providers && viewItem =~ /Provider/",
+          "group": "inline"
+        },
+        {
+          "command": "codexModelSwitcher.overrideContextWindow",
+          "when": "view == codexModelSwitcher.providers && viewItem == modelItem",
+          "group": "inline"
+        }
+      ]
+    },
     "keybindings": [
       {
         "command": "codexModelSwitcher.switchModel",

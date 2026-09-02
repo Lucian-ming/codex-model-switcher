@@ -1,0 +1,21 @@
+<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 24 24" width="24" height="24" fill="none" stroke="currentColor" stroke-width="1.75" stroke-linecap="round" stroke-linejoin="round">
+  <!-- Neural / Switch Core -->
+  <circle cx="12" cy="12" r="3.5" stroke-width="2"/>
+  <circle cx="12" cy="12" r="1.2" fill="currentColor"/>
+
+  <!-- Left Input Branch -->
+  <path d="M3 7h5a4 4 0 0 1 4 4v1"/>
+  <circle cx="3" cy="7" r="1.5" fill="currentColor"/>
+
+  <!-- Left Lower Branch -->
+  <path d="M3 17h5a4 4 0 0 0 4-4v-1"/>
+  <circle cx="3" cy="17" r="1.5" fill="currentColor"/>
+
+  <!-- Right Output Branch Upper -->
+  <path d="M12 12v-1a4 4 0 0 1 4-4h5"/>
+  <polyline points="18 4 21 7 18 10"/>
+
+  <!-- Right Output Branch Lower -->
+  <path d="M12 12v1a4 4 0 0 0 4 4h5"/>
+  <polyline points="18 14 21 17 18 20"/>
+</svg>
