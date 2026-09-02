@@ -498,42 +498,36 @@ async function handleManageProviders(): Promise<void> {
 async function promptAddCustomProvider(): Promise<void> {
   // 第 1 步: 自定义显示名称
   const name = await vscode.window.showInputBox({
-    prompt: '第 1/5 步: 请输入中转站/服务商显示名称 (如: 主力中转站、PinAI A、我的专用网关)',
+    prompt: '第 1/4 步: 请输入中转站/服务商显示名称 (如: 主力中转站、PinAI A、我的专用网关)',
     placeHolder: '例如: 我的中转站'
   });
   if (!name) return;
 
-  // 第 2 步: 唯一标识 ID (默认基于名称生成)
-  const defaultSlug = name.replace(/[^a-zA-Z0-9_\-]/g, '_').toLowerCase() || 'custom_provider';
-  const id = await vscode.window.showInputBox({
-    prompt: '第 2/5 步: 请确认服务商唯一标识 ID (仅支持字母、数字、下划线、连字符)',
-    value: defaultSlug,
-    validateInput: v => (v && /^[a-zA-Z0-9_\-]+$/.test(v) ? null : '标识 ID 只能包含字母、数字、下划线和连字符')
-  });
-  if (!id) return;
+  // 内部唯一 ID 后台静默自动生成，无需打扰用户
+  const id = 'p_' + Date.now().toString(36) + '_' + Math.random().toString(36).slice(2, 6);
 
-  // 第 3 步: API 端点 URL
+  // 第 2 步: API 端点 URL
   const baseUrl = await vscode.window.showInputBox({
-    prompt: '第 3/5 步: 请输入 API 基础端点 URL (如: https://api.example.com/v1)',
+    prompt: '第 2/4 步: 请输入 API 基础端点 URL (如: https://api.example.com/v1)',
     placeHolder: 'https://...',
     validateInput: v => (v && (v.startsWith('http://') || v.startsWith('https://')) ? null : '必须以 http:// 或 https:// 开头')
   });
   if (!baseUrl) return;
 
-  // 第 4 步: 通信协议
+  // 第 3 步: 通信协议
   const protocol = await vscode.window.showQuickPick(
     [
       { label: 'responses', description: 'OpenAI Responses API (Codex 官方标准协议，强烈推荐)' },
       { label: 'chat', description: 'OpenAI Chat Completions 协议 (部分兼容网关支持)' },
       { label: 'anthropic', description: 'Anthropic 格式协议' }
     ],
-    { placeHolder: '第 4/5 步: 选择通信协议' }
+    { placeHolder: '第 3/4 步: 选择通信协议 (推荐直接选 responses)' }
   );
   if (!protocol) return;
 
-  // 第 5 步: API Key
+  // 第 4 步: API Key
   const apiKey = await vscode.window.showInputBox({
-    prompt: '第 5/5 步: 请输入 API Key (可选，将安全加密存入 VS Code SecretStorage)',
+    prompt: '第 4/4 步: 请输入 API Key (可选，将安全加密存入 VS Code SecretStorage)',
     password: true
   });
 
