@@ -1,0 +1,17 @@
+node_modules/
+dist/
+out/
+*.vsix
+.vscode-test/
+.env
+*.env
+auth.json
+secrets.json
+credentials.json
+*.key
+*.pem
+*.backup.*
+.DS_Store
+Thumbs.db
+codex-ts/
+test-fixtures/

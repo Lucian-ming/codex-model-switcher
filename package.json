@@ -1,0 +1,130 @@
+{
+  "name": "codex-model-switcher",
+  "displayName": "Codex Model Switcher",
+  "description": "Seamlessly manage and switch multiple third-party AI providers, models, and profiles for OpenAI Codex in VS Code.",
+  "version": "0.1.0",
+  "publisher": "codex-model-switcher",
+  "license": "MIT",
+  "engines": {
+    "vscode": "^1.96.0"
+  },
+  "categories": [
+    "AI",
+    "Programming Languages",
+    "Other"
+  ],
+  "keywords": [
+    "codex",
+    "openai",
+    "provider",
+    "model-switcher",
+    "claude",
+    "deepseek",
+    "kimi",
+    "openrouter"
+  ],
+  "main": "./dist/extension.js",
+  "activationEvents": [
+    "onStartupFinished"
+  ],
+  "contributes": {
+    "commands": [
+      {
+        "command": "codexModelSwitcher.switchModel",
+        "title": "Codex: Switch Model",
+        "category": "Codex"
+      },
+      {
+        "command": "codexModelSwitcher.switchProvider",
+        "title": "Codex: Switch Provider",
+        "category": "Codex"
+      },
+      {
+        "command": "codexModelSwitcher.switchProfile",
+        "title": "Codex: Switch Profile",
+        "category": "Codex"
+      },
+      {
+        "command": "codexModelSwitcher.refreshModels",
+        "title": "Codex: Refresh Models",
+        "category": "Codex"
+      },
+      {
+        "command": "codexModelSwitcher.testProvider",
+        "title": "Codex: Test Provider Connection",
+        "category": "Codex"
+      },
+      {
+        "command": "codexModelSwitcher.manageProviders",
+        "title": "Codex: Manage Providers",
+        "category": "Codex"
+      },
+      {
+        "command": "codexModelSwitcher.manageProfiles",
+        "title": "Codex: Manage Profiles",
+        "category": "Codex"
+      },
+      {
+        "command": "codexModelSwitcher.openConfig",
+        "title": "Codex: Open Codex Config",
+        "category": "Codex"
+      },
+      {
+        "command": "codexModelSwitcher.restoreConfig",
+        "title": "Codex: Restore Previous Configuration",
+        "category": "Codex"
+      },
+      {
+        "command": "codexModelSwitcher.diagnose",
+        "title": "Codex: Diagnose Environment & Configuration",
+        "category": "Codex"
+      }
+    ],
+    "keybindings": [
+      {
+        "command": "codexModelSwitcher.switchModel",
+        "key": "ctrl+alt+m",
+        "mac": "cmd+alt+m",
+        "when": "true"
+      }
+    ],
+    "configuration": {
+      "title": "Codex Model Switcher",
+      "properties": {
+        "codexModelSwitcher.autoInjectCatalog": {
+          "type": "boolean",
+          "default": true,
+          "description": "Automatically export discovered models to ~/.codex/model_catalog.json for native Codex extension integration."
+        },
+        "codexModelSwitcher.autoRefreshIntervalMinutes": {
+          "type": "number",
+          "default": 360,
+          "description": "Interval in minutes to automatically refresh provider model lists (0 to disable)."
+        },
+        "codexModelSwitcher.logLevel": {
+          "type": "string",
+          "enum": ["DEBUG", "INFO", "WARN", "ERROR"],
+          "default": "INFO",
+          "description": "Logging verbosity in the Codex Model Switcher output channel."
+        }
+      }
+    }
+  },
+  "scripts": {
+    "vscode:prepublish": "npm run compile",
+    "compile": "node esbuild.js",
+    "watch": "node esbuild.js --watch",
+    "test": "vitest run",
+    "lint": "tsc --noEmit"
+  },
+  "dependencies": {
+    "smol-toml": "^1.3.1"
+  },
+  "devDependencies": {
+    "@types/node": "^20.14.0",
+    "@types/vscode": "^1.96.0",
+    "esbuild": "^0.21.5",
+    "typescript": "^5.4.5",
+    "vitest": "^1.6.0"
+  }
+}
