@@ -4,6 +4,10 @@
   "description": "Seamlessly manage and switch multiple third-party AI providers, models, and profiles for OpenAI Codex in VS Code.",
   "version": "0.1.0",
   "publisher": "codex-model-switcher",
+  "repository": {
+    "type": "git",
+    "url": "https://github.com/codex-model-switcher/codex-model-switcher"
+  },
   "license": "MIT",
   "engines": {
     "vscode": "^1.96.0"
@@ -114,6 +118,7 @@
     "vscode:prepublish": "npm run compile",
     "compile": "node esbuild.js",
     "watch": "node esbuild.js --watch",
+    "package": "vsce package --no-dependencies",
     "test": "vitest run",
     "lint": "tsc --noEmit"
   },
