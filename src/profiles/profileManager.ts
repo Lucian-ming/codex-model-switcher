@@ -18,56 +18,7 @@ export class ProfileManager {
   }
 
   private init(): void {
-    const defaults: Profile[] = [
-      {
-        id: 'openai-default',
-        name: 'OpenAI GPT-5.6 Max',
-        providerId: 'OpenAI',
-        modelId: 'gpt-5.6-sol',
-        reviewModelId: 'gpt-5.5',
-        reasoningEffort: 'max',
-        description: 'Official OpenAI high-reasoning development profile',
-        isDefault: true
-      },
-      {
-        id: 'fast-coding',
-        name: 'Fast Coding (GPT-5.5)',
-        providerId: 'OpenAI',
-        modelId: 'gpt-5.5',
-        reasoningEffort: 'low',
-        description: 'Fast, responsive coding with light reasoning'
-      },
-      {
-        id: 'openrouter-claude',
-        name: 'OpenRouter Claude 3.7',
-        providerId: 'OpenRouter',
-        modelId: 'anthropic/claude-3.7-sonnet',
-        reviewModelId: 'anthropic/claude-3.7-sonnet',
-        reasoningEffort: 'medium',
-        description: 'Claude 3.7 Sonnet via OpenRouter aggregator'
-      },
-      {
-        id: 'deepseek-reasoner',
-        name: 'DeepSeek R1 Reasoner',
-        providerId: 'DeepSeek',
-        modelId: 'deepseek-reasoner',
-        reviewModelId: 'deepseek-chat',
-        reasoningEffort: 'high',
-        description: 'Cost-effective high-reasoning coding with DeepSeek'
-      },
-      {
-        id: 'ollama-local',
-        name: 'Local Ollama Qwen',
-        providerId: 'Ollama',
-        modelId: 'qwen2.5-coder:latest',
-        description: 'Completely offline zero-latency local development'
-      }
-    ];
-
-    for (const p of defaults) {
-      this.profiles.set(p.id, p);
-    }
-
+    // 不预设任何第三方配置，所有预设由用户自行创建与管理
     if (fs.existsSync(this.storageFilePath)) {
       try {
         const stored: Profile[] = JSON.parse(fs.readFileSync(this.storageFilePath, 'utf8'));
@@ -89,14 +40,14 @@ export class ProfileManager {
   }
 
   /**
-   * Validates a profile against target model reasoning constraints.
+   * 校验 Profile 是否与目标模型的推理能力兼容
    */
   public validateProfile(profile: Profile, availableModels?: ModelProfile[]): { valid: boolean; error?: string } {
     if (!profile.name || !profile.name.trim()) {
-      return { valid: false, error: 'Profile name cannot be empty.' };
+      return { valid: false, error: '配置预设名称不能为空。' };
     }
     if (!profile.providerId || !profile.modelId) {
-      return { valid: false, error: 'Provider ID and Model ID are required.' };
+      return { valid: false, error: '服务商 ID 与模型 ID 为必填项。' };
     }
 
     if (availableModels && availableModels.length > 0) {
@@ -108,7 +59,7 @@ export class ProfileManager {
           const supported = match.supportedReasoningLevels?.map(l => l.effort).join(', ') || 'none';
           return {
             valid: false,
-            error: `Model "${match.displayName}" does not support reasoning effort "${profile.reasoningEffort}". Supported tiers are: [${supported}].`
+            error: `模型 "${match.displayName}" 不支持推理强度 "${profile.reasoningEffort}"。支持的级别为: [${supported}]。`
           };
         }
       }
@@ -132,7 +83,7 @@ export class ProfileManager {
   }
 
   /**
-   * Applies the profile to config.toml in a single atomic transaction.
+   * 将 Profile 一键原子应用到 config.toml
    */
   public applyProfile(profile: Profile): void {
     const cfg = this.configManager.read();

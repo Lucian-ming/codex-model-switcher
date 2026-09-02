@@ -1,8 +1,8 @@
 {
   "name": "codex-model-switcher",
-  "displayName": "Codex Model Switcher",
-  "description": "Seamlessly manage and switch multiple third-party AI providers, models, and profiles for OpenAI Codex in VS Code.",
-  "version": "0.2.0",
+  "displayName": "Codex 模型切换器",
+  "description": "在 VS Code 中自由管理与切换 OpenAI Codex 的第三方中转站、模型、推理强度与配置预设。",
+  "version": "0.2.1",
   "publisher": "codex-model-switcher",
   "icon": "resources/icon.png",
   "repository": {
@@ -37,7 +37,7 @@
       "activitybar": [
         {
           "id": "codex-model-switcher",
-          "title": "Codex Model Switcher",
+          "title": "Codex 模型切换器",
           "icon": "resources/codex-icon.svg"
         }
       ]
@@ -46,104 +46,110 @@
       "codex-model-switcher": [
         {
           "id": "codexModelSwitcher.current",
-          "name": "Current Active State"
+          "name": "当前生效状态"
         },
         {
           "id": "codexModelSwitcher.providers",
-          "name": "Providers & Models"
+          "name": "服务商与模型"
         },
         {
           "id": "codexModelSwitcher.profiles",
-          "name": "Profiles"
+          "name": "配置预设 (Profiles)"
         },
         {
           "id": "codexModelSwitcher.settings",
-          "name": "Tools & Settings"
+          "name": "工具与设置"
         }
       ]
     },
     "commands": [
       {
         "command": "codexModelSwitcher.switchModel",
-        "title": "Codex: Switch Model",
+        "title": "Codex: 切换模型",
         "category": "Codex"
       },
       {
         "command": "codexModelSwitcher.switchProvider",
-        "title": "Codex: Switch Provider",
+        "title": "Codex: 切换服务商",
         "category": "Codex"
       },
       {
         "command": "codexModelSwitcher.switchProfile",
-        "title": "Codex: Switch Profile",
+        "title": "Codex: 切换配置预设",
         "category": "Codex"
       },
       {
         "command": "codexModelSwitcher.adjustReasoningEffort",
-        "title": "Codex: Adjust Reasoning Effort",
+        "title": "Codex: 调整推理强度 (Reasoning Effort)",
         "category": "Codex"
       },
       {
         "command": "codexModelSwitcher.overrideContextWindow",
-        "title": "Codex: Override Context Window",
+        "title": "Codex: 自定义覆盖上下文容量 (Context Window)",
         "category": "Codex"
       },
       {
         "command": "codexModelSwitcher.resetContextWindow",
-        "title": "Codex: Reset Context Window to Discovered",
+        "title": "Codex: 重置上下文容量至接口发现值",
         "category": "Codex"
       },
       {
         "command": "codexModelSwitcher.refreshModels",
-        "title": "Codex: Refresh Models",
+        "title": "Codex: 刷新服务商模型列表",
         "icon": "$(refresh)",
         "category": "Codex"
       },
       {
         "command": "codexModelSwitcher.testProvider",
-        "title": "Codex: Test Provider Connection",
+        "title": "Codex: 测试服务商连通状态",
         "icon": "$(pulse)",
         "category": "Codex"
       },
       {
         "command": "codexModelSwitcher.manageProviders",
-        "title": "Codex: Manage Providers",
+        "title": "Codex: 管理服务商 (添加/改名/换Key/删除)",
         "category": "Codex"
       },
       {
         "command": "codexModelSwitcher.addProvider",
-        "title": "Codex: Add Provider",
+        "title": "Codex: 添加中转站 / 服务商",
         "icon": "$(add)",
         "category": "Codex"
       },
       {
+        "command": "codexModelSwitcher.editProvider",
+        "title": "Codex: 修改中转站名字或端点",
+        "icon": "$(edit)",
+        "category": "Codex"
+      },
+      {
         "command": "codexModelSwitcher.manageProfiles",
-        "title": "Codex: Manage Profiles",
+        "title": "Codex: 管理配置预设",
         "icon": "$(add)",
         "category": "Codex"
       },
       {
         "command": "codexModelSwitcher.openConfig",
-        "title": "Codex: Open Codex Config",
+        "title": "Codex: 打开配置文件 (config.toml)",
         "category": "Codex"
       },
       {
         "command": "codexModelSwitcher.restoreConfig",
-        "title": "Codex: Restore Previous Configuration",
+        "title": "Codex: 恢复历史配置备份",
         "category": "Codex"
       },
       {
         "command": "codexModelSwitcher.diagnose",
-        "title": "Codex: Diagnose Environment & Configuration",
+        "title": "Codex: 运行系统与环境诊断",
         "category": "Codex"
       },
       {
         "command": "codexModelSwitcher.activateModelDirectly",
-        "title": "Codex: Activate Model Directly"
+        "title": "Codex: 激活此模型"
       },
       {
         "command": "codexModelSwitcher.applyProfileDirectly",
-        "title": "Codex: Apply Profile Directly"
+        "title": "Codex: 应用此预设"
       }
     ],
     "menus": {
@@ -171,6 +177,11 @@
       ],
       "view/item/context": [
         {
+          "command": "codexModelSwitcher.editProvider",
+          "when": "view == codexModelSwitcher.providers && viewItem =~ /Provider/",
+          "group": "inline"
+        },
+        {
           "command": "codexModelSwitcher.testProvider",
           "when": "view == codexModelSwitcher.providers && viewItem =~ /Provider/",
           "group": "inline"
@@ -191,23 +202,23 @@
       }
     ],
     "configuration": {
-      "title": "Codex Model Switcher",
+      "title": "Codex 模型切换器",
       "properties": {
         "codexModelSwitcher.autoInjectCatalog": {
           "type": "boolean",
           "default": true,
-          "description": "Automatically export discovered models to ~/.codex/model_catalog.json for native Codex extension integration."
+          "description": "自动将发现的第三方模型导出至 ~/.codex/model_catalog.json，使官方 Codex 扩展原生生效。"
         },
         "codexModelSwitcher.autoRefreshIntervalMinutes": {
           "type": "number",
           "default": 360,
-          "description": "Interval in minutes to automatically refresh provider model lists (0 to disable)."
+          "description": "自动刷新服务商模型列表的周期（分钟，0为禁用）。"
         },
         "codexModelSwitcher.logLevel": {
           "type": "string",
           "enum": ["DEBUG", "INFO", "WARN", "ERROR"],
           "default": "INFO",
-          "description": "Logging verbosity in the Codex Model Switcher output channel."
+          "description": "Codex 模型切换器输出通道的日志详细程度。"
         }
       }
     }

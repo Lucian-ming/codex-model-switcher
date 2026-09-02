@@ -9,7 +9,7 @@ export class StatusBarController {
     this.configManager = configManager;
     this.statusBarItem = vscode.window.createStatusBarItem(vscode.StatusBarAlignment.Right, 100);
     this.statusBarItem.command = 'codexModelSwitcher.switchModel';
-    this.statusBarItem.tooltip = 'Click to switch Codex model or provider';
+    this.statusBarItem.tooltip = '点击快速切换 Codex 模型或服务商';
 
     this.update();
 
@@ -26,16 +26,16 @@ export class StatusBarController {
       const provider = cfg.model_provider;
 
       if (!model) {
-        this.statusBarItem.text = '$(warning) Codex: No Model';
+        this.statusBarItem.text = '$(warning) Codex: 未选模型';
         this.statusBarItem.backgroundColor = new vscode.ThemeColor('statusBarItem.warningBackground');
       } else {
         this.statusBarItem.text = `$(sparkle) Codex: ${model}`;
         this.statusBarItem.backgroundColor = undefined;
-        this.statusBarItem.tooltip = `Codex Active Model: ${model}\nProvider: ${provider || 'Default'}\nReasoning Effort: ${cfg.model_reasoning_effort || 'default'}\nClick to switch`;
+        this.statusBarItem.tooltip = `当前激活模型: ${model}\n服务商: ${provider || '默认'}\n推理等级: ${cfg.model_reasoning_effort || '默认'}\n点击切换模型或服务商`;
       }
       this.statusBarItem.show();
     } catch {
-      this.statusBarItem.text = '$(error) Codex: Config Error';
+      this.statusBarItem.text = '$(error) Codex: 配置异常';
       this.statusBarItem.backgroundColor = new vscode.ThemeColor('statusBarItem.errorBackground');
       this.statusBarItem.show();
     }

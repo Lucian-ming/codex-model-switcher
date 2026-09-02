@@ -40,7 +40,7 @@ export class ProvidersTreeProvider implements vscode.TreeDataProvider<ProviderTr
       const isActive = p.id === currentProviderId;
 
       const modelCount = p.models ? p.models.length : 0;
-      const desc = `${modelCount} models • ${p.protocol} ${isActive ? '● (Active)' : ''}`;
+      const desc = `${modelCount} 个模型 • ${p.protocol} ${isActive ? '● (当前激活)' : ''}`;
 
       const item = new vscode.TreeItem(
         p.name,
@@ -50,9 +50,9 @@ export class ProvidersTreeProvider implements vscode.TreeDataProvider<ProviderTr
       );
 
       item.description = desc;
-      item.contextValue = p.builtin ? 'builtinProvider' : 'customProvider';
+      item.contextValue = 'customProvider';
       item.iconPath = new vscode.ThemeIcon(isActive ? 'server-process' : 'server');
-      item.tooltip = `Provider ID: ${p.id}\nBase URL: ${sanitizeText(p.baseUrl || 'Default')}\nProtocol: ${p.protocol}\nHealth: ${p.healthStatus || 'untested'}`;
+      item.tooltip = `中转站名称: ${p.name}\n唯一标识: ${p.id}\n接口端点: ${sanitizeText(p.baseUrl || '默认')}\n通信协议: ${p.protocol}\n健康状态: ${p.healthStatus || '未检测'}`;
 
       return item;
     }
@@ -67,17 +67,17 @@ export class ProvidersTreeProvider implements vscode.TreeDataProvider<ProviderTr
     const tokens = override !== undefined ? override : (m.contextWindow || 128000);
     const tokenStr = ContextOverrideManager.formatTokens(tokens);
 
-    const levels = m.supportedReasoningLevels?.map(l => l.effort).join('/') || m.defaultReasoningLevel || 'none';
+    const levels = m.supportedReasoningLevels?.map(l => l.effort).join('/') || m.defaultReasoningLevel || '无推理';
 
     const item = new vscode.TreeItem(m.displayName, vscode.TreeItemCollapsibleState.None);
     item.description = `${m.modelId} • ${tokenStr} • [${levels}]`;
     item.contextValue = 'modelItem';
     item.iconPath = new vscode.ThemeIcon(isActive ? 'check' : 'sparkle');
-    item.tooltip = `Model: ${m.displayName} (${m.modelId})\nProvider: ${element.provider.name}\nContext Window: ${tokens} tokens\nReasoning Tiers: ${levels}\nClick to activate this model`;
+    item.tooltip = `模型: ${m.displayName} (${m.modelId})\n所属服务商: ${element.provider.name}\n上下文容量: ${tokens} tokens\n支持推理级别: ${levels}\n点击一键切换为当前使用模型`;
 
     item.command = {
       command: 'codexModelSwitcher.activateModelDirectly',
-      title: 'Activate Model',
+      title: '激活该模型',
       arguments: [m]
     };
 
@@ -88,7 +88,7 @@ export class ProvidersTreeProvider implements vscode.TreeDataProvider<ProviderTr
     if (!element) {
       const providers = this.registry.list();
       if (providers.length === 0) {
-        return Promise.resolve([{ type: 'empty', message: 'No providers configured. Click + to add.' }]);
+        return Promise.resolve([{ type: 'empty', message: '暂未配置中转站，请点击右上角 + 按钮添加自定义服务商。' }]);
       }
       return Promise.resolve(providers.map(p => ({ type: 'provider', provider: p })));
     }
@@ -96,7 +96,7 @@ export class ProvidersTreeProvider implements vscode.TreeDataProvider<ProviderTr
     if (element.type === 'provider') {
       const p = element.provider;
       if (!p.models || p.models.length === 0) {
-        return Promise.resolve([{ type: 'empty', message: 'No models discovered yet. Click refresh icon.' }]);
+        return Promise.resolve([{ type: 'empty', message: '未发现模型，请点击右上角 ↻ 刷新图标从接口获取。' }]);
       }
       return Promise.resolve(
         p.models.map(m => ({

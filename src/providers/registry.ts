@@ -17,7 +17,7 @@ export class ProviderRegistry {
   }
 
   private init(): void {
-    // 1. Load built-ins
+    // 1. Load built-ins (if any)
     for (const p of BUILTIN_PROVIDERS) {
       this.providers.set(p.id, { ...p });
     }
@@ -34,7 +34,7 @@ export class ProviderRegistry {
       }
     }
 
-    // 3. Auto-discover existing providers in ~/.codex/config.toml
+    // 3. Auto-discover existing providers in ~/.codex/config.toml (e.g. PinAI)
     try {
       const existingTables = this.configManager.getProviders();
       for (const [id, table] of Object.entries(existingTables)) {
@@ -66,7 +66,7 @@ export class ProviderRegistry {
     this.providers.set(provider.id, provider);
     this.saveCustomProviders();
 
-    // Also sync provider table into config.toml
+    // Sync provider table into config.toml
     this.configManager.upsertProvider(provider.id, {
       name: provider.name,
       base_url: provider.baseUrl,
@@ -78,9 +78,31 @@ export class ProviderRegistry {
     });
   }
 
+  public updateProviderInfo(id: string, updates: Partial<ProviderConfig>): void {
+    const existing = this.providers.get(id);
+    if (!existing) return;
+
+    const updated: ProviderConfig = {
+      ...existing,
+      ...updates
+    };
+    this.providers.set(id, updated);
+    this.saveCustomProviders();
+
+    this.configManager.upsertProvider(id, {
+      name: updated.name,
+      base_url: updated.baseUrl,
+      wire_api: updated.protocol,
+      requires_openai_auth: updated.requiresOpenaiAuth,
+      env_key: updated.envKey,
+      http_headers: updated.headers,
+      query_params: updated.queryParams
+    });
+  }
+
   public unregister(id: string): void {
     const existing = this.providers.get(id);
-    if (existing && !existing.builtin) {
+    if (existing) {
       this.providers.delete(id);
       this.saveCustomProviders();
       this.configManager.removeProvider(id);

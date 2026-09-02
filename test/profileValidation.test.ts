@@ -66,7 +66,7 @@ describe('Profile Validation and Management', () => {
 
     const validation = profileManager.validateProfile(invalidProfile, mockModels);
     expect(validation.valid).toBe(false);
-    expect(validation.error).toContain('does not support reasoning effort "max"');
+    expect(validation.error).toContain('不支持推理强度 "max"');
 
     expect(() => profileManager.saveProfile(invalidProfile, mockModels)).toThrow();
   });
