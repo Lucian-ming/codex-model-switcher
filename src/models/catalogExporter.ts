@@ -17,7 +17,8 @@ export class CatalogExporter {
   public static exportCatalog(
     models: ModelProfile[],
     targetPath?: string,
-    configManager?: CodexConfigManager
+    configManager?: CodexConfigManager,
+    baseInstructions?: string
   ): string {
     const env = PathResolver.resolve();
     const catalogPath = targetPath || env.modelCatalogJsonPath;
@@ -49,7 +50,7 @@ export class CatalogExporter {
           supported_in_api: true,
           default_reasoning_level: m.defaultReasoningLevel || 'medium',
           supported_reasoning_levels: levels,
-          base_instructions: DEFAULT_BASE_INSTRUCTIONS,
+          base_instructions: baseInstructions || DEFAULT_BASE_INSTRUCTIONS,
           input_modalities: m.inputModalities || ['text', 'image'],
           supports_search_tool: m.supportsSearchTool !== false,
           tool_mode: m.toolMode || 'code_mode_only',

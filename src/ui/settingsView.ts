@@ -10,6 +10,24 @@ export interface SettingTreeItem {
 export class SettingsTreeProvider implements vscode.TreeDataProvider<SettingTreeItem> {
   private items: SettingTreeItem[] = [
     {
+      label: '修改全局系统提示词 (Base Instructions)',
+      description: '自定义全局基础身份与工程准则',
+      icon: 'edit',
+      command: 'codexModelSwitcher.editBaseInstructions'
+    },
+    {
+      label: '在当前项目配置指令 (AGENTS.md)',
+      description: 'Codex 官方最高优先级项目指令',
+      icon: 'file-text',
+      command: 'codexModelSwitcher.createProjectInstructions'
+    },
+    {
+      label: '恢复默认系统提示词',
+      description: '重置为官方通用编程助手设置',
+      icon: 'discard',
+      command: 'codexModelSwitcher.resetBaseInstructions'
+    },
+    {
       label: '打开 Codex 配置文件 (config.toml)',
       description: '~/.codex/config.toml',
       icon: 'file-code',

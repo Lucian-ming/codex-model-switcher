@@ -1,5 +1,6 @@
 import * as vscode from 'vscode';
 import * as fs from 'fs';
+import * as path from 'path';
 import { CodexConfigManager } from './codex/configManager.js';
 import { PathResolver } from './codex/pathResolver.js';
 import { SecretManager } from './security/secretManager.js';
@@ -22,6 +23,7 @@ import { ProviderConfig } from './providers/types.js';
 import { ModelProfile } from './models/types.js';
 import { CodexProfile } from './profiles/types.js';
 import { ProcessHelper } from './codex/processHelper.js';
+import { InstructionManager } from './instructions/instructionManager.js';
 
 let outputChannel: vscode.OutputChannel;
 let statusBar: StatusBarController;
@@ -31,6 +33,7 @@ let registry: ProviderRegistry;
 let profileManager: ProfileManager;
 let modelCache: ModelCache;
 let overrideManager: ContextOverrideManager;
+let instructionManager: InstructionManager;
 
 let currentTreeProvider: CurrentConfigTreeProvider;
 let providersTreeProvider: ProvidersTreeProvider;
@@ -51,7 +54,20 @@ export function activate(context: vscode.ExtensionContext) {
   profileManager = new ProfileManager(configManager);
   modelCache = new ModelCache();
   overrideManager = new ContextOverrideManager();
+  instructionManager = new InstructionManager();
   statusBar = new StatusBarController(configManager);
+
+  // 监听系统提示词文档保存事件，即时热重载
+  context.subscriptions.push(
+    vscode.workspace.onDidSaveTextDocument(doc => {
+      if (doc.uri.fsPath === instructionManager.getInstructionsPath()) {
+        outputChannel.appendLine('检测到 base_instructions.md 保存，正在重新同步 Codex 模型目录...');
+        syncCatalogToCodex();
+        ProcessHelper.restartAppServer();
+        vscode.window.showInformationMessage('全局默认系统提示词已更新并热加载至 Codex！');
+      }
+    })
+  );
 
   // 初始化侧边栏四大原生视图
   currentTreeProvider = new CurrentConfigTreeProvider(configManager, registry, overrideManager);
@@ -109,6 +125,9 @@ export function activate(context: vscode.ExtensionContext) {
     vscode.commands.registerCommand('codexModelSwitcher.manageProfiles', handleManageProfiles),
     vscode.commands.registerCommand('codexModelSwitcher.openConfig', handleOpenConfig),
     vscode.commands.registerCommand('codexModelSwitcher.restoreConfig', handleRestoreConfig),
+    vscode.commands.registerCommand('codexModelSwitcher.editBaseInstructions', handleEditBaseInstructions),
+    vscode.commands.registerCommand('codexModelSwitcher.createProjectInstructions', handleCreateProjectInstructions),
+    vscode.commands.registerCommand('codexModelSwitcher.resetBaseInstructions', handleResetBaseInstructions),
     vscode.commands.registerCommand('codexModelSwitcher.diagnose', handleDiagnose),
     vscode.commands.registerCommand('codexModelSwitcher.activateModelDirectly', handleActivateModelDirectly),
     vscode.commands.registerCommand('codexModelSwitcher.applyProfileDirectly', handleApplyProfileDirectly)
@@ -165,12 +184,13 @@ function syncCatalogToCodex(): void {
       }
     }
 
+    const instructions = instructionManager ? instructionManager.getInstructions() : undefined;
     if (allModels.length > 0) {
       const effectiveModels = overrideManager.applyToModels(allModels);
-      CatalogExporter.exportCatalog(effectiveModels, undefined, configManager);
-      outputChannel.appendLine(`已向 Codex 官方目录合并导出 ${effectiveModels.length} 个可用模型。`);
+      CatalogExporter.exportCatalog(effectiveModels, undefined, configManager, instructions);
+      outputChannel.appendLine(`已向 Codex 官方目录合并导出 ${effectiveModels.length} 个可用模型 (自定义提示词已注入)。`);
     } else {
-      CatalogExporter.exportCatalog([], undefined, configManager);
+      CatalogExporter.exportCatalog([], undefined, configManager, instructions);
     }
   } catch (err: any) {
     outputChannel.appendLine(`同步多站模型目录失败: ${err.message}`);
@@ -806,4 +826,42 @@ async function handleRestoreConfig(): Promise<void> {
 
 async function handleDiagnose(): Promise<void> {
   await DiagnosticsRunner.run(configManager, registry, outputChannel);
+}
+
+async function handleEditBaseInstructions(): Promise<void> {
+  const filePath = instructionManager.getInstructionsPath();
+  const doc = await vscode.workspace.openTextDocument(vscode.Uri.file(filePath));
+  await vscode.window.showTextDocument(doc);
+  vscode.window.showInformationMessage('您正在编辑 Codex 全局系统提示词 (Base Instructions)。编辑完成后保存 (Ctrl+S) 即可即时生效。');
+}
+
+async function handleCreateProjectInstructions(): Promise<void> {
+  const folders = vscode.workspace.workspaceFolders;
+  if (!folders || folders.length === 0) {
+    vscode.window.showWarningMessage('当前未打开任何工作区文件夹，无法创建项目级提示词。');
+    return;
+  }
+  const rootPath = folders[0].uri.fsPath;
+  const agentsMdPath = path.join(rootPath, 'AGENTS.md');
+  if (!fs.existsSync(agentsMdPath)) {
+    const template = `# 项目级 AI 指令 (AGENTS.md)\n\n> 本文件是 OpenAI Codex 官方识别的最高优先级项目指令文件。\n\n## 角色与职责\n- 你是一个资深软件工程师。\n- 请使用中文与我沟通交流。\n- 编写的代码要求具有高可读性与完善的类型定义。\n`;
+    fs.writeFileSync(agentsMdPath, template, 'utf8');
+  }
+  const doc = await vscode.workspace.openTextDocument(vscode.Uri.file(agentsMdPath));
+  await vscode.window.showTextDocument(doc);
+  vscode.window.showInformationMessage('已为您打开项目级提示词文件 (AGENTS.md)。Codex 在该项目中将严格优先遵循此指令！');
+}
+
+async function handleResetBaseInstructions(): Promise<void> {
+  const confirm = await vscode.window.showWarningMessage(
+    '确定要将全局系统提示词恢复为官方默认设置吗？',
+    { modal: true },
+    '确认恢复'
+  );
+  if (confirm === '确认恢复') {
+    instructionManager.reset();
+    syncCatalogToCodex();
+    await ProcessHelper.restartAppServer();
+    vscode.window.showInformationMessage('Codex 全局系统提示词已成功恢复为默认设置。');
+  }
 }

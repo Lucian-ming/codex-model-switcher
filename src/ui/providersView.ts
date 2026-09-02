@@ -92,10 +92,20 @@ export class ProvidersTreeProvider implements vscode.TreeDataProvider<ProviderTr
       item.iconPath = new vscode.ThemeIcon('circle-slash', new vscode.ThemeColor('disabledForeground'));
       item.tooltip = `模型: ${m.displayName} (${m.modelId})\n状态: 已禁用 (不显示在快速切换列表中)`;
     } else {
+      const sourceDesc = override !== undefined
+        ? '用户手动自定义覆盖'
+        : (m.contextWindowInfo?.source === 'pattern'
+          ? '名称后缀精准提取'
+          : m.contextWindowInfo?.source === 'knowledge_base'
+            ? '权威大模型规格库'
+            : m.contextWindowInfo?.source === 'discovered'
+              ? '中转站接口直接返回'
+              : '默认保底值');
+
       item.description = `${m.modelId} • ${tokenStr} • [${levels}] ${isActive ? '● [正在使用]' : ''}`;
       item.contextValue = 'modelItem_enabled';
       item.iconPath = new vscode.ThemeIcon(isActive ? 'check' : 'sparkle');
-      item.tooltip = `模型: ${m.displayName} (${m.modelId})\n所属服务商: ${element.provider.name}\n上下文容量: ${tokens} tokens\n支持推理级别: ${levels}\n点击一键切换 Codex 为该模型`;
+      item.tooltip = `模型: ${m.displayName} (${m.modelId})\n所属服务商: ${element.provider.name}\n上下文容量: ${tokenStr} (${tokens} tokens) [来源: ${sourceDesc}]\n支持推理级别: ${levels}\n点击一键切换 Codex 为该模型`;
 
       item.command = {
         command: 'codexModelSwitcher.activateModelDirectly',

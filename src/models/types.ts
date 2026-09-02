@@ -5,7 +5,7 @@ export interface ReasoningLevelOption {
 
 export interface ContextWindowInfo {
   value: number;
-  source: 'discovered' | 'user' | 'default';
+  source: 'discovered' | 'user' | 'default' | 'pattern' | 'knowledge_base';
   discoveredValue?: number;
 }
 
