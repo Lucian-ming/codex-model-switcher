@@ -1,22 +1,17 @@
-import { exec } from 'child_process';
-import { promisify } from 'util';
-
-const execAsync = promisify(exec);
+import * as vscode from 'vscode';
 
 export class ProcessHelper {
   /**
-   * 清理后台常驻的旧 codex app-server 守护进程，
-   * 强制官方 Codex 插件重新加载最新的 config.toml 与 model_catalog.json。
+   * 优雅重启 Codex 运行环境：
+   * 采用 VS Code 官方原生标准重载机制（与官方 Codex 界面中的 Restart Codex 行为完全一致），
+   * 彻底废除底层直接 pkill 导致的 "Codex app-server process exited unexpectedly" 异常报错。
    */
+  public static async restartCodex(): Promise<void> {
+    await vscode.commands.executeCommand('workbench.action.reloadWindow');
+  }
+
+  // 兼容旧调用名
   public static async restartAppServer(): Promise<void> {
-    try {
-      if (process.platform === 'linux' || process.platform === 'darwin') {
-        await execAsync('pkill -f "codex.*app-server" || true');
-      } else {
-        await execAsync('powershell.exe -NoProfile -Command "Stop-Process -Name codex -Force -ErrorAction SilentlyContinue"');
-      }
-    } catch {
-      // 忽略未运行或已终止的情况
-    }
+    await this.restartCodex();
   }
 }

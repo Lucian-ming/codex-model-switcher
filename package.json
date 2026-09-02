@@ -2,7 +2,7 @@
   "name": "codex-model-switcher",
   "displayName": "Codex 模型切换器",
   "description": "在 VS Code 中自由管理与切换 OpenAI Codex 的第三方中转站、模型、推理强度与配置预设。",
-  "version": "0.2.6",
+  "version": "0.2.7",
   "publisher": "codex-model-switcher",
   "icon": "resources/icon.png",
   "repository": {

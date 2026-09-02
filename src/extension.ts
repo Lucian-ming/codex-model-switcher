@@ -63,8 +63,7 @@ export function activate(context: vscode.ExtensionContext) {
       if (doc.uri.fsPath === instructionManager.getInstructionsPath()) {
         outputChannel.appendLine('检测到 base_instructions.md 保存，正在重新同步 Codex 模型目录...');
         syncCatalogToCodex();
-        ProcessHelper.restartAppServer();
-        vscode.window.showInformationMessage('全局默认系统提示词已更新并热加载至 Codex！');
+        vscode.window.showInformationMessage('全局默认系统提示词已更新并同步写入 Codex 模型目录！切换模型或重载窗口即可生效。');
       }
     })
   );
@@ -257,24 +256,8 @@ async function handleActivateModelDirectly(selected: ModelProfile): Promise<void
     syncCatalogToCodex();
     refreshAllViews();
 
-    // 4. 重启旧的 app-server 进程，强制 Codex 重新载入最新模型
-    await ProcessHelper.restartAppServer();
-
-    const providerObj = registry.get(selected.providerId);
-    const providerName = providerObj ? providerObj.name : selected.providerId;
-
-    const action = await vscode.window.showInformationMessage(
-      `已切换当前模型为: ${selected.displayName} (所属中转站: ${providerName})。注意：若当前窗口正处于旧对话中，需开启新会话以生效，是否立即开启新对话？`,
-      '开启新对话 (New Chat)',
-      '稍后手动新建'
-    );
-    if (action === '开启新对话 (New Chat)') {
-      try {
-        await vscode.commands.executeCommand('chatgpt.newChat');
-      } catch (err) {
-        outputChannel.appendLine(`触发新建对话提示: ${err}`);
-      }
-    }
+    // 4. 切换模型后，直接干净重启 Codex 运行环境（杜绝意外杀死进程导致的红标报错与无效弹窗）
+    await ProcessHelper.restartCodex();
   } catch (err: any) {
     vscode.window.showErrorMessage(`激活模型失败: ${err.message}`);
   }
@@ -430,7 +413,7 @@ async function handleApplyProfileDirectly(profile: CodexProfile): Promise<void> 
     profileManager.applyProfile(profile);
     syncCatalogToCodex();
     refreshAllViews();
-    vscode.window.showInformationMessage(`已应用配置预设: ${profile.name}`);
+    await ProcessHelper.restartCodex();
   } catch (err: any) {
     vscode.window.showErrorMessage(`应用预设失败: ${err.message}`);
   }
@@ -606,7 +589,6 @@ async function promptAddCustomProvider(): Promise<void> {
     if (discovered.length > 0) {
       registry.updateModels(id, discovered);
       syncCatalogToCodex();
-      await ProcessHelper.restartAppServer();
       refreshAllViews();
       vscode.window.showInformationMessage(`自动从 "${name}" 发现了 ${discovered.length} 个模型并已注入 Codex。`);
     }
@@ -669,7 +651,6 @@ async function handleToggleProviderEnabled(element?: ProviderTreeElement): Promi
 
   const newState = registry.toggleProviderEnabled(selected.id);
   syncCatalogToCodex();
-  await ProcessHelper.restartAppServer();
   refreshAllViews();
 
   vscode.window.showInformationMessage(
@@ -689,7 +670,6 @@ async function handleToggleModelEnabled(element?: ProviderTreeElement): Promise<
   const m = element.model;
   const newState = registry.toggleModelEnabled(m.providerId, m.modelId);
   syncCatalogToCodex();
-  await ProcessHelper.restartAppServer();
   refreshAllViews();
 
   vscode.window.showInformationMessage(
@@ -861,7 +841,7 @@ async function handleResetBaseInstructions(): Promise<void> {
   if (confirm === '确认恢复') {
     instructionManager.reset();
     syncCatalogToCodex();
-    await ProcessHelper.restartAppServer();
+    await ProcessHelper.restartCodex();
     vscode.window.showInformationMessage('Codex 全局系统提示词已成功恢复为默认设置。');
   }
 }
