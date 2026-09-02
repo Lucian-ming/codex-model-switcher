@@ -2,7 +2,7 @@
   "name": "codex-model-switcher",
   "displayName": "Codex 模型切换器",
   "description": "在 VS Code 中自由管理与切换 OpenAI Codex 的第三方中转站、模型、推理强度与配置预设。",
-  "version": "0.2.4",
+  "version": "0.2.5",
   "publisher": "codex-model-switcher",
   "icon": "resources/icon.png",
   "repository": {
@@ -86,6 +86,7 @@
       {
         "command": "codexModelSwitcher.overrideContextWindow",
         "title": "Codex: 自定义覆盖上下文容量 (Context Window)",
+        "icon": "$(gear)",
         "category": "Codex"
       },
       {
@@ -123,13 +124,39 @@
         "category": "Codex"
       },
       {
+        "command": "codexModelSwitcher.disableProvider",
+        "title": "Codex: 禁用该中转站 (隐藏整站模型)",
+        "icon": "$(circle-slash)",
+        "category": "Codex"
+      },
+      {
+        "command": "codexModelSwitcher.enableProvider",
+        "title": "Codex: 启用该中转站",
+        "icon": "$(play)",
+        "category": "Codex"
+      },
+      {
+        "command": "codexModelSwitcher.disableModel",
+        "title": "Codex: 禁用此模型 (隐藏)",
+        "icon": "$(eye-closed)",
+        "category": "Codex"
+      },
+      {
+        "command": "codexModelSwitcher.enableModel",
+        "title": "Codex: 启用此模型",
+        "icon": "$(eye)",
+        "category": "Codex"
+      },
+      {
         "command": "codexModelSwitcher.toggleProviderEnabled",
         "title": "Codex: 启用 / 禁用该中转站",
+        "icon": "$(circle-slash)",
         "category": "Codex"
       },
       {
         "command": "codexModelSwitcher.toggleModelEnabled",
         "title": "Codex: 启用 / 禁用此模型",
+        "icon": "$(eye-closed)",
         "category": "Codex"
       },
       {
@@ -161,7 +188,8 @@
       },
       {
         "command": "codexModelSwitcher.activateModelDirectly",
-        "title": "Codex: 激活此模型"
+        "title": "Codex: 激活此模型 (立即切换)",
+        "icon": "$(check)"
       },
       {
         "command": "codexModelSwitcher.applyProfileDirectly",
@@ -193,44 +221,89 @@
       ],
       "view/item/context": [
         {
-          "command": "codexModelSwitcher.toggleProviderEnabled",
+          "command": "codexModelSwitcher.disableProvider",
           "when": "view == codexModelSwitcher.providers && viewItem == customProvider_enabled",
           "group": "inline@0"
         },
         {
-          "command": "codexModelSwitcher.toggleProviderEnabled",
+          "command": "codexModelSwitcher.disableProvider",
+          "when": "view == codexModelSwitcher.providers && viewItem == customProvider_enabled",
+          "group": "1_state@1"
+        },
+        {
+          "command": "codexModelSwitcher.enableProvider",
           "when": "view == codexModelSwitcher.providers && viewItem == customProvider_disabled",
           "group": "inline@0"
         },
         {
+          "command": "codexModelSwitcher.enableProvider",
+          "when": "view == codexModelSwitcher.providers && viewItem == customProvider_disabled",
+          "group": "1_state@1"
+        },
+        {
           "command": "codexModelSwitcher.editProvider",
-          "when": "view == codexModelSwitcher.providers && viewItem =~ /Provider/",
+          "when": "view == codexModelSwitcher.providers && viewItem =~ /customProvider/",
           "group": "inline@1"
         },
         {
+          "command": "codexModelSwitcher.editProvider",
+          "when": "view == codexModelSwitcher.providers && viewItem =~ /customProvider/",
+          "group": "2_manage@1"
+        },
+        {
           "command": "codexModelSwitcher.testProvider",
-          "when": "view == codexModelSwitcher.providers && viewItem =~ /Provider/",
+          "when": "view == codexModelSwitcher.providers && viewItem =~ /customProvider/",
           "group": "inline@2"
         },
         {
+          "command": "codexModelSwitcher.testProvider",
+          "when": "view == codexModelSwitcher.providers && viewItem =~ /customProvider/",
+          "group": "2_manage@2"
+        },
+        {
           "command": "codexModelSwitcher.deleteProviderDirectly",
-          "when": "view == codexModelSwitcher.providers && viewItem =~ /Provider/",
+          "when": "view == codexModelSwitcher.providers && viewItem =~ /customProvider/",
           "group": "inline@3"
         },
         {
-          "command": "codexModelSwitcher.toggleModelEnabled",
+          "command": "codexModelSwitcher.deleteProviderDirectly",
+          "when": "view == codexModelSwitcher.providers && viewItem =~ /customProvider/",
+          "group": "3_delete@1"
+        },
+        {
+          "command": "codexModelSwitcher.activateModelDirectly",
+          "when": "view == codexModelSwitcher.providers && viewItem == modelItem_enabled",
+          "group": "0_activate@1"
+        },
+        {
+          "command": "codexModelSwitcher.disableModel",
           "when": "view == codexModelSwitcher.providers && viewItem == modelItem_enabled",
           "group": "inline@0"
         },
         {
-          "command": "codexModelSwitcher.toggleModelEnabled",
-          "when": "view == codexModelSwitcher.providers && viewItem == modelItem_disabled",
-          "group": "inline@0"
+          "command": "codexModelSwitcher.disableModel",
+          "when": "view == codexModelSwitcher.providers && viewItem == modelItem_enabled",
+          "group": "1_state@1"
         },
         {
           "command": "codexModelSwitcher.overrideContextWindow",
           "when": "view == codexModelSwitcher.providers && viewItem == modelItem_enabled",
           "group": "inline@1"
+        },
+        {
+          "command": "codexModelSwitcher.overrideContextWindow",
+          "when": "view == codexModelSwitcher.providers && viewItem == modelItem_enabled",
+          "group": "2_config@1"
+        },
+        {
+          "command": "codexModelSwitcher.enableModel",
+          "when": "view == codexModelSwitcher.providers && viewItem == modelItem_disabled",
+          "group": "inline@0"
+        },
+        {
+          "command": "codexModelSwitcher.enableModel",
+          "when": "view == codexModelSwitcher.providers && viewItem == modelItem_disabled",
+          "group": "1_state@1"
         }
       ]
     },
