@@ -21,6 +21,7 @@ import { SettingsTreeProvider } from './ui/settingsView.js';
 import { ProviderConfig } from './providers/types.js';
 import { ModelProfile } from './models/types.js';
 import { CodexProfile } from './profiles/types.js';
+import { ProcessHelper } from './codex/processHelper.js';
 
 let outputChannel: vscode.OutputChannel;
 let statusBar: StatusBarController;
@@ -220,12 +221,24 @@ async function handleActivateModelDirectly(selected: ModelProfile): Promise<void
     syncCatalogToCodex();
     refreshAllViews();
 
+    // 4. 重启旧的 app-server 进程，强制 Codex 重新载入最新模型
+    await ProcessHelper.restartAppServer();
+
     const providerObj = registry.get(selected.providerId);
     const providerName = providerObj ? providerObj.name : selected.providerId;
 
-    vscode.window.showInformationMessage(
-      `已激活模型: ${selected.displayName} (来自中转站: ${providerName}) [推理: ${fallback.effort}]`
+    const action = await vscode.window.showInformationMessage(
+      `已切换当前模型为: ${selected.displayName} (所属中转站: ${providerName})。注意：若当前窗口正处于旧对话中，需开启新会话以生效，是否立即开启新对话？`,
+      '开启新对话 (New Chat)',
+      '稍后手动新建'
     );
+    if (action === '开启新对话 (New Chat)') {
+      try {
+        await vscode.commands.executeCommand('chatgpt.newChat');
+      } catch (err) {
+        outputChannel.appendLine(`触发新建对话提示: ${err}`);
+      }
+    }
   } catch (err: any) {
     vscode.window.showErrorMessage(`激活模型失败: ${err.message}`);
   }
@@ -557,6 +570,7 @@ async function promptAddCustomProvider(): Promise<void> {
     if (discovered.length > 0) {
       registry.updateModels(id, discovered);
       syncCatalogToCodex();
+      await ProcessHelper.restartAppServer();
       refreshAllViews();
       vscode.window.showInformationMessage(`自动从 "${name}" 发现了 ${discovered.length} 个模型并已注入 Codex。`);
     }
