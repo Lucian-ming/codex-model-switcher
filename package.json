@@ -2,7 +2,7 @@
   "name": "codex-model-switcher",
   "displayName": "Codex 模型切换器",
   "description": "在 VS Code 中自由管理与切换 OpenAI Codex 的第三方中转站、模型、推理强度与配置预设。",
-  "version": "0.2.3",
+  "version": "0.2.4",
   "publisher": "codex-model-switcher",
   "icon": "resources/icon.png",
   "repository": {
@@ -123,6 +123,16 @@
         "category": "Codex"
       },
       {
+        "command": "codexModelSwitcher.toggleProviderEnabled",
+        "title": "Codex: 启用 / 禁用该中转站",
+        "category": "Codex"
+      },
+      {
+        "command": "codexModelSwitcher.toggleModelEnabled",
+        "title": "Codex: 启用 / 禁用此模型",
+        "category": "Codex"
+      },
+      {
         "command": "codexModelSwitcher.deleteProviderDirectly",
         "title": "Codex: 删除该中转站",
         "icon": "$(trash)",
@@ -183,6 +193,16 @@
       ],
       "view/item/context": [
         {
+          "command": "codexModelSwitcher.toggleProviderEnabled",
+          "when": "view == codexModelSwitcher.providers && viewItem == customProvider_enabled",
+          "group": "inline@0"
+        },
+        {
+          "command": "codexModelSwitcher.toggleProviderEnabled",
+          "when": "view == codexModelSwitcher.providers && viewItem == customProvider_disabled",
+          "group": "inline@0"
+        },
+        {
           "command": "codexModelSwitcher.editProvider",
           "when": "view == codexModelSwitcher.providers && viewItem =~ /Provider/",
           "group": "inline@1"
@@ -198,9 +218,19 @@
           "group": "inline@3"
         },
         {
+          "command": "codexModelSwitcher.toggleModelEnabled",
+          "when": "view == codexModelSwitcher.providers && viewItem == modelItem_enabled",
+          "group": "inline@0"
+        },
+        {
+          "command": "codexModelSwitcher.toggleModelEnabled",
+          "when": "view == codexModelSwitcher.providers && viewItem == modelItem_disabled",
+          "group": "inline@0"
+        },
+        {
           "command": "codexModelSwitcher.overrideContextWindow",
-          "when": "view == codexModelSwitcher.providers && viewItem == modelItem",
-          "group": "inline"
+          "when": "view == codexModelSwitcher.providers && viewItem == modelItem_enabled",
+          "group": "inline@1"
         }
       ]
     },
@@ -218,7 +248,7 @@
         "codexModelSwitcher.autoInjectCatalog": {
           "type": "boolean",
           "default": true,
-          "description": "自动将已配置的各中转站模型合并导出至 ~/.codex/model_catalog.json，使官方 Codex 扩展原生可直接多站切换。"
+          "description": "自动将已启用的各中转站模型合并导出至 ~/.codex/model_catalog.json，使官方 Codex 扩展原生可直接多站切换。"
         },
         "codexModelSwitcher.autoRefreshIntervalMinutes": {
           "type": "number",

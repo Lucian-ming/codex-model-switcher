@@ -99,6 +99,8 @@ export function activate(context: vscode.ExtensionContext) {
     vscode.commands.registerCommand('codexModelSwitcher.manageProviders', handleManageProviders),
     vscode.commands.registerCommand('codexModelSwitcher.addProvider', promptAddCustomProvider),
     vscode.commands.registerCommand('codexModelSwitcher.editProvider', promptEditProvider),
+    vscode.commands.registerCommand('codexModelSwitcher.toggleProviderEnabled', handleToggleProviderEnabled),
+    vscode.commands.registerCommand('codexModelSwitcher.toggleModelEnabled', handleToggleModelEnabled),
     vscode.commands.registerCommand('codexModelSwitcher.deleteProviderDirectly', handleDeleteProviderDirectly),
     vscode.commands.registerCommand('codexModelSwitcher.manageProfiles', handleManageProfiles),
     vscode.commands.registerCommand('codexModelSwitcher.openConfig', handleOpenConfig),
@@ -136,7 +138,13 @@ function syncCatalogToCodex(): void {
     let allModels: ModelProfile[] = [];
 
     for (const p of allProviders) {
-      // 确保每个服务商在 config.toml 的 model_providers 中均有定义
+      if (p.enabled === false) {
+        // 禁用的服务商从 config.toml 中临时解绑
+        configManager.removeProvider(p.id);
+        continue;
+      }
+
+      // 确保每个已启用的服务商在 config.toml 的 model_providers 中均有定义
       configManager.upsertProvider(p.id, {
         name: p.name,
         base_url: p.baseUrl,
@@ -148,14 +156,17 @@ function syncCatalogToCodex(): void {
       });
 
       if (p.models && p.models.length > 0) {
-        allModels.push(...p.models);
+        const activeModels = p.models.filter(m => m.enabled !== false);
+        allModels.push(...activeModels);
       }
     }
 
     if (allModels.length > 0) {
       const effectiveModels = overrideManager.applyToModels(allModels);
       CatalogExporter.exportCatalog(effectiveModels, undefined, configManager);
-      outputChannel.appendLine(`已向 Codex 官方目录合并导出 ${effectiveModels.length} 个模型 (来自 ${allProviders.length} 个中转站)。`);
+      outputChannel.appendLine(`已向 Codex 官方目录合并导出 ${effectiveModels.length} 个可用模型。`);
+    } else {
+      CatalogExporter.exportCatalog([], undefined, configManager);
     }
   } catch (err: any) {
     outputChannel.appendLine(`同步多站模型目录失败: ${err.message}`);
@@ -166,17 +177,18 @@ async function handleSwitchModel(): Promise<void> {
   const currentModel = configManager.getCurrentModel();
   const currentProviderId = configManager.getCurrentProvider();
 
-  // 跨所有已配置的中转站收集所有模型
+  // 仅跨已启用的中转站收集未被禁用的可用模型
   let candidateModels: ModelProfile[] = [];
   for (const p of registry.list()) {
+    if (p.enabled === false) continue;
     if (p.models && p.models.length > 0) {
-      candidateModels.push(...p.models);
+      candidateModels.push(...p.models.filter(m => m.enabled !== false));
     }
   }
 
   if (candidateModels.length === 0) {
     const action = await vscode.window.showWarningMessage(
-      '当前未发现可用模型。是否从接口刷新模型或添加新中转站？',
+      '当前未发现可用模型（或全部模型/服务商已被禁用）。是否从接口刷新模型或添加新中转站？',
       '刷新模型',
       '添加中转站'
     );
@@ -617,6 +629,48 @@ async function promptEditProvider(element?: ProviderTreeElement): Promise<void> 
   syncCatalogToCodex();
   refreshAllViews();
   vscode.window.showInformationMessage(`中转站信息已更新为: ${newName} (${newUrl})`);
+}
+
+/**
+ * 启用 / 禁用整个中转站
+ */
+async function handleToggleProviderEnabled(element?: ProviderTreeElement): Promise<void> {
+  let selected: ProviderConfig | undefined;
+  if (element && element.type === 'provider') {
+    selected = element.provider;
+  } else {
+    selected = await QuickPickController.selectProvider(registry.list());
+  }
+  if (!selected) return;
+
+  const newState = registry.toggleProviderEnabled(selected.id);
+  syncCatalogToCodex();
+  await ProcessHelper.restartAppServer();
+  refreshAllViews();
+
+  vscode.window.showInformationMessage(
+    `中转站 "${selected.name}" 已${newState ? '启用' : '禁用'}。${newState ? '其所有模型已恢复到切换列表中。' : '其所有模型已从切换列表与 Codex 目录中隐藏。'}`
+  );
+}
+
+/**
+ * 启用 / 禁用某个具体模型
+ */
+async function handleToggleModelEnabled(element?: ProviderTreeElement): Promise<void> {
+  if (!element || element.type !== 'model') {
+    vscode.window.showInformationMessage('请在侧边栏模型节点上点击此操作。');
+    return;
+  }
+
+  const m = element.model;
+  const newState = registry.toggleModelEnabled(m.providerId, m.modelId);
+  syncCatalogToCodex();
+  await ProcessHelper.restartAppServer();
+  refreshAllViews();
+
+  vscode.window.showInformationMessage(
+    `模型 "${m.displayName}" (${m.modelId}) 已${newState ? '启用' : '禁用'}。${newState ? '已恢复到快速切换列表中。' : '已从快速切换列表与 Codex 目录中隐藏。'}`
+  );
 }
 
 /**

@@ -12,6 +12,7 @@ export interface ProviderConfig {
   headers?: Record<string, string>;
   queryParams?: Record<string, string>;
   models: ModelProfile[];
+  enabled?: boolean;
   builtin?: boolean;
   lastTestedAt?: string;
   latencyMs?: number;

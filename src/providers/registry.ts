@@ -127,6 +127,24 @@ export class ProviderRegistry {
     }
   }
 
+  public toggleProviderEnabled(id: string): boolean {
+    const p = this.providers.get(id);
+    if (!p) return false;
+    p.enabled = !(p.enabled !== false);
+    this.saveCustomProviders();
+    return p.enabled;
+  }
+
+  public toggleModelEnabled(providerId: string, modelId: string): boolean {
+    const p = this.providers.get(providerId);
+    if (!p || !p.models) return false;
+    const m = p.models.find(item => item.modelId === modelId);
+    if (!m) return false;
+    m.enabled = !(m.enabled !== false);
+    this.saveCustomProviders();
+    return m.enabled;
+  }
+
   private saveCustomProviders(): void {
     try {
       const dir = path.dirname(this.storageFilePath);
