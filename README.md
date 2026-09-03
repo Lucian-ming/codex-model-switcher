@@ -36,6 +36,15 @@ It bridges the gap between third-party AI providers (OrcaRouter, OpenRouter, Dee
 
 ---
 
+## 🎁 Recommended Gateway: OrcaRouter
+
+This extension officially recommends **[OrcaRouter](https://www.orcarouter.ai/ref/ref_b779bf29c6f860b78f52)** for unified model access:
+- 🌟 **Comprehensive Model Selection**: Access OpenAI (o1/o3/gpt-4o), Anthropic Claude 3.5, Google Gemini 2.0/1.5, DeepSeek R1/V3 through a single OpenAI-compatible API.
+- 💰 **Exclusive Free Credits**: Register through our [partner referral link (https://www.orcarouter.ai/ref/ref_b779bf29c6f860b78f52)](https://www.orcarouter.ai/ref/ref_b779bf29c6f860b78f52) to receive exclusive free credits.
+- ⚡ **1-Click Integration**: In the extension sidebar, click `+` and choose **`1-Click Connect OrcaRouter`** — the endpoint `https://api.orcarouter.ai/v1` is automatically pre-configured.
+
+---
+
 ## 📐 Architecture
 
 ```

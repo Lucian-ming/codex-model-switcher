@@ -129,6 +129,9 @@ export function activate(context: vscode.ExtensionContext) {
     vscode.commands.registerCommand('codexModelSwitcher.resetBaseInstructions', handleResetBaseInstructions),
     vscode.commands.registerCommand('codexModelSwitcher.restartExtensionHost', () => ProcessHelper.restartExtensionHost()),
     vscode.commands.registerCommand('codexModelSwitcher.reloadWindow', () => ProcessHelper.reloadWindow()),
+    vscode.commands.registerCommand('codexModelSwitcher.openOrcaRouterRef', () => {
+      vscode.env.openExternal(vscode.Uri.parse('https://www.orcarouter.ai/ref/ref_b779bf29c6f860b78f52'));
+    }),
     vscode.commands.registerCommand('codexModelSwitcher.diagnose', handleDiagnose),
     vscode.commands.registerCommand('codexModelSwitcher.activateModelDirectly', handleActivateModelDirectly),
     vscode.commands.registerCommand('codexModelSwitcher.applyProfileDirectly', handleApplyProfileDirectly)
@@ -556,38 +559,72 @@ async function handleManageProviders(): Promise<void> {
  * 步骤式添加自定义服务商，支持完全自定义中转站名字
  */
 async function promptAddCustomProvider(): Promise<void> {
-  // 第 1 步: 自定义显示名称
-  const name = await vscode.window.showInputBox({
-    prompt: '第 1/4 步: 请输入中转站/服务商显示名称 (如: 主力中转站、PinAI A、我的专用网关)',
-    placeHolder: '例如: 我的中转站'
-  });
-  if (!name) return;
+  const mode = await vscode.window.showQuickPick(
+    [
+      {
+        label: '$(sparkle) 一键接入 OrcaRouter (官方推荐聚合中转网关)',
+        description: 'https://api.orcarouter.ai/v1',
+        detail: '聚合 OpenAI / Claude / Gemini / DeepSeek 等全系模型，专属注册通道享额度福利',
+        type: 'orcarouter'
+      },
+      {
+        label: '$(add) 自定义添加中转站 / 服务商',
+        description: '手动输入中转站名称、端点 URL 与通信协议',
+        detail: '支持各类私有网关与 OneAPI / NewAPI / OpenRouter 兼容端点',
+        type: 'custom'
+      }
+    ],
+    { placeHolder: '请选择添加方式' }
+  );
+  if (!mode) return;
+
+  let name = '';
+  let baseUrl = '';
+  let protocolStr = 'responses';
+
+  if (mode.type === 'orcarouter') {
+    name = 'OrcaRouter';
+    baseUrl = 'https://api.orcarouter.ai/v1';
+    protocolStr = 'chat';
+  } else {
+    // 第 1 步: 自定义显示名称
+    const customName = await vscode.window.showInputBox({
+      prompt: '第 1/4 步: 请输入中转站/服务商显示名称 (如: 主力中转站、PinAI A、我的专用网关)',
+      placeHolder: '例如: 我的中转站'
+    });
+    if (!customName) return;
+    name = customName;
+
+    // 第 2 步: API 端点 URL
+    const customUrl = await vscode.window.showInputBox({
+      prompt: '第 2/4 步: 请输入 API 基础端点 URL (如: https://api.example.com/v1)',
+      placeHolder: 'https://...',
+      validateInput: v => (v && (v.startsWith('http://') || v.startsWith('https://')) ? null : '必须以 http:// 或 https:// 开头')
+    });
+    if (!customUrl) return;
+    baseUrl = customUrl;
+
+    // 第 3 步: 通信协议
+    const protocolPick = await vscode.window.showQuickPick(
+      [
+        { label: 'responses', description: 'OpenAI Responses API (Codex 官方标准协议，强烈推荐)' },
+        { label: 'chat', description: 'OpenAI Chat Completions 协议 (部分兼容网关支持)' },
+        { label: 'anthropic', description: 'Anthropic 格式协议' }
+      ],
+      { placeHolder: '第 3/4 步: 选择通信协议 (推荐直接选 responses)' }
+    );
+    if (!protocolPick) return;
+    protocolStr = protocolPick.label;
+  }
 
   // 内部唯一 ID 后台静默自动生成，无需打扰用户
   const id = 'p_' + Date.now().toString(36) + '_' + Math.random().toString(36).slice(2, 6);
 
-  // 第 2 步: API 端点 URL
-  const baseUrl = await vscode.window.showInputBox({
-    prompt: '第 2/4 步: 请输入 API 基础端点 URL (如: https://api.example.com/v1)',
-    placeHolder: 'https://...',
-    validateInput: v => (v && (v.startsWith('http://') || v.startsWith('https://')) ? null : '必须以 http:// 或 https:// 开头')
-  });
-  if (!baseUrl) return;
-
-  // 第 3 步: 通信协议
-  const protocol = await vscode.window.showQuickPick(
-    [
-      { label: 'responses', description: 'OpenAI Responses API (Codex 官方标准协议，强烈推荐)' },
-      { label: 'chat', description: 'OpenAI Chat Completions 协议 (部分兼容网关支持)' },
-      { label: 'anthropic', description: 'Anthropic 格式协议' }
-    ],
-    { placeHolder: '第 3/4 步: 选择通信协议 (推荐直接选 responses)' }
-  );
-  if (!protocol) return;
-
   // 第 4 步: API Key
   const apiKey = await vscode.window.showInputBox({
-    prompt: '第 4/4 步: 请输入 API Key (可选，将安全加密存入 VS Code SecretStorage)',
+    prompt: mode.type === 'orcarouter'
+      ? '请输入 OrcaRouter API Key (还没有 Key？专属通道注册获取: https://www.orcarouter.ai/ref/ref_b779bf29c6f860b78f52)'
+      : `请输入 ${name} 的 API Key (可选，将安全加密存入 VS Code SecretStorage):`,
     password: true
   });
 
@@ -595,7 +632,7 @@ async function promptAddCustomProvider(): Promise<void> {
     id,
     name,
     baseUrl,
-    protocol: protocol.label as any,
+    protocol: protocolStr as any,
     models: []
   };
 

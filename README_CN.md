@@ -36,6 +36,15 @@
 
 ---
 
+## 🎁 官方推荐中转网关：OrcaRouter
+
+本项目官方推荐搭配 **[OrcaRouter](https://www.orcarouter.ai/ref/ref_b779bf29c6f860b78f52)** AI 聚合中转路由使用：
+- 🌟 **全模型覆盖**：聚合 OpenAI (o1/o3/gpt-4o)、Anthropic Claude 3.5、Google Gemini 2.0/1.5、DeepSeek R1/V3 等主流顶尖模型；
+- 💰 **专属注册福利**：通过 [专属邀请注册通道 (https://www.orcarouter.ai/ref/ref_b779bf29c6f860b78f52)](https://www.orcarouter.ai/ref/ref_b779bf29c6f860b78f52) 注册，即可获赠专属新用户免费测试额度；
+- ⚡ **一键极速接入**：在插件“服务商与模型”点击 `+` 号，选择 **`一键接入 OrcaRouter`**，端点已自动预设（`https://api.orcarouter.ai/v1`），填入 Key 即可秒级同步全系列模型！
+
+---
+
 ## 📐 架构原理
 
 ```
