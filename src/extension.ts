@@ -127,6 +127,8 @@ export function activate(context: vscode.ExtensionContext) {
     vscode.commands.registerCommand('codexModelSwitcher.editBaseInstructions', handleEditBaseInstructions),
     vscode.commands.registerCommand('codexModelSwitcher.createProjectInstructions', handleCreateProjectInstructions),
     vscode.commands.registerCommand('codexModelSwitcher.resetBaseInstructions', handleResetBaseInstructions),
+    vscode.commands.registerCommand('codexModelSwitcher.restartExtensionHost', () => ProcessHelper.restartExtensionHost()),
+    vscode.commands.registerCommand('codexModelSwitcher.reloadWindow', () => ProcessHelper.reloadWindow()),
     vscode.commands.registerCommand('codexModelSwitcher.diagnose', handleDiagnose),
     vscode.commands.registerCommand('codexModelSwitcher.activateModelDirectly', handleActivateModelDirectly),
     vscode.commands.registerCommand('codexModelSwitcher.applyProfileDirectly', handleApplyProfileDirectly)
@@ -252,12 +254,27 @@ async function handleActivateModelDirectly(selected: ModelProfile): Promise<void
     }
     configManager.write(cfg);
 
-    // 3. 导出模型目录并更新所有视图
+    // 3. 导出模型目录并更新所有视图与状态栏
     syncCatalogToCodex();
     refreshAllViews();
 
-    // 4. 切换模型后，直接干净重启 Codex 运行环境（杜绝意外杀死进程导致的红标报错与无效弹窗）
-    await ProcessHelper.restartCodex();
+    // 4. 零打扰极速生效：毫秒级完成，窗口不白屏、不打断心流
+    const providerObj = registry.get(selected.providerId);
+    const providerName = providerObj ? providerObj.name : selected.providerId;
+    vscode.window.setStatusBarMessage(`$(check) Codex 当前模型已切换为: ${selected.displayName} (${providerName})`, 4000);
+
+    // 轻量非阻塞通知（带重载快捷操作，无需处理亦可直接在后续会话中生效）
+    vscode.window.showInformationMessage(
+      `已切换至模型: ${selected.displayName} (${providerName})。新对话将自动生效。`,
+      '重启扩展主机',
+      '重载窗口'
+    ).then(action => {
+      if (action === '重启扩展主机') {
+        ProcessHelper.restartExtensionHost();
+      } else if (action === '重载窗口') {
+        ProcessHelper.reloadWindow();
+      }
+    });
   } catch (err: any) {
     vscode.window.showErrorMessage(`激活模型失败: ${err.message}`);
   }
@@ -413,7 +430,18 @@ async function handleApplyProfileDirectly(profile: CodexProfile): Promise<void> 
     profileManager.applyProfile(profile);
     syncCatalogToCodex();
     refreshAllViews();
-    await ProcessHelper.restartCodex();
+    vscode.window.setStatusBarMessage(`$(check) 已应用配置预设: ${profile.name}`, 4000);
+    vscode.window.showInformationMessage(
+      `已成功应用配置预设: ${profile.name}。`,
+      '重启扩展主机',
+      '重载窗口'
+    ).then(action => {
+      if (action === '重启扩展主机') {
+        ProcessHelper.restartExtensionHost();
+      } else if (action === '重载窗口') {
+        ProcessHelper.reloadWindow();
+      }
+    });
   } catch (err: any) {
     vscode.window.showErrorMessage(`应用预设失败: ${err.message}`);
   }

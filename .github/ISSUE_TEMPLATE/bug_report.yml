@@ -1,0 +1,53 @@
+name: 🐛 Bug Report
+description: Create a report to help us improve Codex Model Switcher
+labels: [ "bug" ]
+body:
+  - type: markdown
+    attributes:
+      value: |
+        Thanks for taking the time to report a bug! Please ensure you have tested with the latest version of Codex Model Switcher.
+  - type: input
+    id: version
+    attributes:
+      label: Extension Version
+      description: What version of Codex Model Switcher are you running?
+      placeholder: "e.g. 0.3.0"
+    validations:
+      required: true
+  - type: dropdown
+    id: os
+    attributes:
+      label: Operating System & Environment
+      options:
+        - Windows (Native)
+        - Windows (WSL2 / Remote-WSL)
+        - macOS (Apple Silicon)
+        - macOS (Intel)
+        - Linux (Ubuntu / Debian / Fedora)
+    validations:
+      required: true
+  - type: textarea
+    id: description
+    attributes:
+      label: Bug Description
+      description: A clear and concise description of what the bug is.
+    validations:
+      required: true
+  - type: textarea
+    id: reproduce
+    attributes:
+      label: Steps to Reproduce
+      description: Steps to reproduce the behavior.
+      placeholder: |
+        1. Open sidebar 'Providers & Models'
+        2. Click 'Add Custom Provider'
+        3. Enter URL and API Key
+        4. See error...
+    validations:
+      required: true
+  - type: textarea
+    id: logs
+    attributes:
+      label: Diagnostics / Output Logs
+      description: Paste any relevant logs from Output panel -> 'Codex Model Switcher'.
+      render: shell

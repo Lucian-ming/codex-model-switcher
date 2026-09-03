@@ -2,13 +2,18 @@
   "name": "codex-model-switcher",
   "displayName": "Codex 模型切换器",
   "description": "在 VS Code 中自由管理与切换 OpenAI Codex 的第三方中转站、模型、推理强度与配置预设。",
-  "version": "0.2.7",
+  "version": "0.3.0",
   "publisher": "codex-model-switcher",
+  "author": "Lucian-ming <fyt0091@tju.edu.cn>",
   "icon": "resources/icon.png",
   "repository": {
     "type": "git",
-    "url": "https://github.com/codex-model-switcher/codex-model-switcher"
+    "url": "https://github.com/Lucian-ming/codex-model-switcher.git"
   },
+  "bugs": {
+    "url": "https://github.com/Lucian-ming/codex-model-switcher/issues"
+  },
+  "homepage": "https://github.com/Lucian-ming/codex-model-switcher#readme",
   "license": "MIT",
   "engines": {
     "vscode": "^1.96.0"
@@ -187,6 +192,18 @@
         "command": "codexModelSwitcher.resetBaseInstructions",
         "title": "Codex: 恢复默认系统提示词",
         "icon": "$(discard)",
+        "category": "Codex"
+      },
+      {
+        "command": "codexModelSwitcher.restartExtensionHost",
+        "title": "Codex: 重启扩展主机 (Restart Extension Host)",
+        "icon": "$(sync)",
+        "category": "Codex"
+      },
+      {
+        "command": "codexModelSwitcher.reloadWindow",
+        "title": "Codex: 重新加载窗口 (Reload Window)",
+        "icon": "$(refresh)",
         "category": "Codex"
       },
       {

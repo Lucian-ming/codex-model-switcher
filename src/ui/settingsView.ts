@@ -28,6 +28,18 @@ export class SettingsTreeProvider implements vscode.TreeDataProvider<SettingTree
       command: 'codexModelSwitcher.resetBaseInstructions'
     },
     {
+      label: '重启扩展主机 (Restart Extension Host)',
+      description: '后台重载所有扩展，不刷新窗口',
+      icon: 'sync',
+      command: 'codexModelSwitcher.restartExtensionHost'
+    },
+    {
+      label: '重新加载窗口 (Reload Window)',
+      description: '完整重置 Webview 与服务进程',
+      icon: 'refresh',
+      command: 'codexModelSwitcher.reloadWindow'
+    },
+    {
       label: '打开 Codex 配置文件 (config.toml)',
       description: '~/.codex/config.toml',
       icon: 'file-code',
@@ -48,7 +60,7 @@ export class SettingsTreeProvider implements vscode.TreeDataProvider<SettingTree
     {
       label: '刷新全部服务商模型目录',
       description: '向所有端点同步最新 /v1/models',
-      icon: 'refresh',
+      icon: 'cloud-download',
       command: 'codexModelSwitcher.refreshModels'
     }
   ];

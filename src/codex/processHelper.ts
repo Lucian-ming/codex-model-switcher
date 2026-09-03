@@ -2,16 +2,27 @@ import * as vscode from 'vscode';
 
 export class ProcessHelper {
   /**
-   * 优雅重启 Codex 运行环境：
-   * 采用 VS Code 官方原生标准重载机制（与官方 Codex 界面中的 Restart Codex 行为完全一致），
-   * 彻底废除底层直接 pkill 导致的 "Codex app-server process exited unexpectedly" 异常报错。
+   * 重载当前 VS Code 窗口：
+   * 干净且彻底地重置 Webview 渲染进程、RPC 会话和底层的常驻守护进程。
    */
-  public static async restartCodex(): Promise<void> {
+  public static async reloadWindow(): Promise<void> {
     await vscode.commands.executeCommand('workbench.action.reloadWindow');
   }
 
-  // 兼容旧调用名
+  /**
+   * 重启 VS Code 扩展主机（Extension Host）：
+   * 仅重启后台扩展运行进程，不刷新窗口，不打断编辑器界面。
+   */
+  public static async restartExtensionHost(): Promise<void> {
+    await vscode.commands.executeCommand('workbench.action.restartExtensionHost');
+  }
+
+  // 别名方法
+  public static async restartCodex(): Promise<void> {
+    await this.reloadWindow();
+  }
+
   public static async restartAppServer(): Promise<void> {
-    await this.restartCodex();
+    await this.reloadWindow();
   }
 }
