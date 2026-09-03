@@ -17,7 +17,7 @@
 
 **Codex Model Switcher** is a non-invasive, production-grade VS Code extension designed for developers using the OpenAI Codex CLI and VS Code extension (in Remote-WSL and local environments). 
 
-It bridges the gap between third-party AI providers (OpenRouter, DeepSeek, Kimi/Moonshot, SiliconFlow, Qwen, GLM, local Ollama, and custom gateways) and OpenAI Codex's native model ecosystem.
+It bridges the gap between third-party AI providers (OrcaRouter, OpenRouter, DeepSeek, Kimi/Moonshot, SiliconFlow, Qwen, GLM, local Ollama, and custom gateways) and OpenAI Codex's native model ecosystem.
 
 ### Key Capabilities
 - **⚡ Zero-Interruption Instant Model Switching**: Atomic configuration writes update `~/.codex/config.toml` and `~/.codex/model_catalog.json` in milliseconds without disruptive full-window restarts.

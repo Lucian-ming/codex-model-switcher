@@ -17,11 +17,11 @@
 
 **Codex 模型切换器 (Codex Model Switcher)** 是专为 OpenAI Codex 打造的一站式服务商接入与模型热切换 VS Code 扩展。支持原生 Remote-WSL、Linux、macOS 与 Windows 环境。
 
-它彻底打破了官方 Codex 对单一 API Endpoint 的绑定限制，让开发者能够自由使用 **OpenRouter、DeepSeek、月之暗面 Kimi、硅基流动 SiliconFlow、通义千问 Qwen、智谱 GLM、本地 Ollama** 以及各类私有中转站。
+它彻底打破了官方 Codex 对单一 API Endpoint 的绑定限制，让开发者能够自由使用 **OrcaRouter、OpenRouter、DeepSeek、月之暗面 Kimi、硅基流动 SiliconFlow、通义千问 Qwen、智谱 GLM、本地 Ollama** 以及各类私有中转站。
 
 ### 核心特性
 - 🚀 **极速静默切换（Zero-Interruption）**：毫秒级原子修改 `~/.codex/config.toml` 与 `model_catalog.json`，状态栏实时更新，**完全不重启窗口、不打断编程心流**。
-- 🌐 **多服务商并发管理**：支持同时配置多个第三方中转站（无需反复切换激活状态），所有站点的模型统一汇聚，自由按需切换。
+- 🌐 **多服务商并发管理**：原生支持 OrcaRouter、OpenRouter 等聚合网关，支持同时配置多个第三方中转站，所有站点的模型统一汇聚，自由按需切换。
 - 👁 **一键禁用/隐藏**：支持禁用整个中转站或隐藏某个具体模型，彻底保持快速切换列表清爽。
 - 📏 **四层高精度上下文容量引擎**：
   - 深度兼容 12 种网关扩展字段（`context_length`, `max_tokens`, `max_model_len` 等）；
