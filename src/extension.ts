@@ -559,37 +559,72 @@ async function handleManageProviders(): Promise<void> {
  * 步骤式添加自定义服务商，支持完全自定义中转站名字
  */
 async function promptAddCustomProvider(): Promise<void> {
-  const mode = await vscode.window.showQuickPick(
-    [
-      {
-        label: '$(sparkle) 一键接入 OrcaRouter (官方推荐聚合中转网关)',
-        description: 'https://api.orcarouter.ai/v1',
-        detail: '聚合 OpenAI / Claude / Gemini / DeepSeek 等全系模型，专属注册通道享额度福利',
-        type: 'orcarouter'
-      },
-      {
-        label: '$(add) 自定义添加中转站 / 服务商',
-        description: '手动输入中转站名称、端点 URL 与通信协议',
-        detail: '支持各类私有网关与 OneAPI / NewAPI / OpenRouter 兼容端点',
-        type: 'custom'
-      }
-    ],
-    { placeHolder: '请选择添加方式' }
-  );
-  if (!mode) return;
+  const presetOptions = [
+    {
+      label: '$(sparkle) OrcaRouter',
+      description: 'https://api.orcarouter.ai/v1',
+      detail: 'OpenAI 兼容聚合模型路由网关 (Claude / OpenAI / Gemini / DeepSeek)',
+      presetId: 'orcarouter',
+      name: 'OrcaRouter',
+      baseUrl: 'https://api.orcarouter.ai/v1',
+      protocol: 'chat',
+      website: 'https://www.orcarouter.ai/ref/ref_b779bf29c6f860b78f52'
+    },
+    {
+      label: '$(cloud) OpenRouter',
+      description: 'https://openrouter.ai/api/v1',
+      detail: 'Unified interface for LLMs and cognitive APIs',
+      presetId: 'openrouter',
+      name: 'OpenRouter',
+      baseUrl: 'https://openrouter.ai/api/v1',
+      protocol: 'chat',
+      website: 'https://openrouter.ai'
+    },
+    {
+      label: '$(server) DeepSeek',
+      description: 'https://api.deepseek.com/v1',
+      detail: 'DeepSeek 官方 API (DeepSeek-V3 / DeepSeek-R1)',
+      presetId: 'deepseek',
+      name: 'DeepSeek',
+      baseUrl: 'https://api.deepseek.com/v1',
+      protocol: 'chat',
+      website: 'https://deepseek.com'
+    },
+    {
+      label: '$(zap) SiliconFlow (硅基流动)',
+      description: 'https://api.siliconflow.cn/v1',
+      detail: 'SiliconFlow 大模型计算与分发平台',
+      presetId: 'siliconflow',
+      name: 'SiliconFlow',
+      baseUrl: 'https://api.siliconflow.cn/v1',
+      protocol: 'chat',
+      website: 'https://siliconflow.cn'
+    },
+    {
+      label: '$(add) 自定义服务商 / 中转站 (Custom Provider)',
+      description: '手动输入中转站名称、端点 URL 与通信协议',
+      detail: '支持各类私有中转网关、OneAPI / NewAPI 与本地 Ollama 兼容端点',
+      presetId: 'custom',
+      name: '',
+      baseUrl: '',
+      protocol: 'responses',
+      website: ''
+    }
+  ];
 
-  let name = '';
-  let baseUrl = '';
-  let protocolStr = 'responses';
+  const selectedPreset = await vscode.window.showQuickPick(presetOptions, {
+    placeHolder: '选择要添加的服务商预设或自定义中转站'
+  });
+  if (!selectedPreset) return;
 
-  if (mode.type === 'orcarouter') {
-    name = 'OrcaRouter';
-    baseUrl = 'https://api.orcarouter.ai/v1';
-    protocolStr = 'chat';
-  } else {
+  let name = selectedPreset.name;
+  let baseUrl = selectedPreset.baseUrl;
+  let protocolStr = selectedPreset.protocol;
+
+  if (selectedPreset.presetId === 'custom') {
     // 第 1 步: 自定义显示名称
     const customName = await vscode.window.showInputBox({
-      prompt: '第 1/4 步: 请输入中转站/服务商显示名称 (如: 主力中转站、PinAI A、我的专用网关)',
+      prompt: '第 1/4 步: 请输入服务商/中转站显示名称 (如: 主力中转站、我的专用网关)',
       placeHolder: '例如: 我的中转站'
     });
     if (!customName) return;
@@ -618,12 +653,14 @@ async function promptAddCustomProvider(): Promise<void> {
   }
 
   // 内部唯一 ID 后台静默自动生成，无需打扰用户
-  const id = 'p_' + Date.now().toString(36) + '_' + Math.random().toString(36).slice(2, 6);
+  const id = selectedPreset.presetId !== 'custom'
+    ? selectedPreset.presetId
+    : 'p_' + Date.now().toString(36) + '_' + Math.random().toString(36).slice(2, 6);
 
   // 第 4 步: API Key
   const apiKey = await vscode.window.showInputBox({
-    prompt: mode.type === 'orcarouter'
-      ? '请输入 OrcaRouter API Key (还没有 Key？专属通道注册获取: https://www.orcarouter.ai/ref/ref_b779bf29c6f860b78f52)'
+    prompt: selectedPreset.website
+      ? `请输入 ${name} API Key (可在 ${selectedPreset.website} 获取):`
       : `请输入 ${name} 的 API Key (可选，将安全加密存入 VS Code SecretStorage):`,
     password: true
   });

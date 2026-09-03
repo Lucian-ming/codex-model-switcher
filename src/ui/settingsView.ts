@@ -10,8 +10,8 @@ export interface SettingTreeItem {
 export class SettingsTreeProvider implements vscode.TreeDataProvider<SettingTreeItem> {
   private items: SettingTreeItem[] = [
     {
-      label: '获取 OrcaRouter 专属额度与 Key (官方推荐)',
-      description: '注册即可获取聚合模型额度与 API Key',
+      label: 'OrcaRouter 官网与控制台',
+      description: '打开 OrcaRouter 模型网关控制台',
       icon: 'link-external',
       command: 'codexModelSwitcher.openOrcaRouterRef'
     },

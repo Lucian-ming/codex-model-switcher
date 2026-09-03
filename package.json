@@ -2,7 +2,7 @@
   "name": "codex-model-switcher",
   "displayName": "Codex 模型切换器",
   "description": "在 VS Code 中自由管理与切换 OpenAI Codex 的第三方中转站、模型、推理强度与配置预设。",
-  "version": "0.3.1",
+  "version": "0.3.2",
   "publisher": "codex-model-switcher",
   "author": "Lucian-ming <fyt0091@tju.edu.cn>",
   "icon": "resources/icon.png",
@@ -196,7 +196,7 @@
       },
       {
         "command": "codexModelSwitcher.openOrcaRouterRef",
-        "title": "Codex: 获取 OrcaRouter 专属额度与 Key (官方推荐)",
+        "title": "Codex: 打开 OrcaRouter 官网与控制台",
         "icon": "$(link-external)",
         "category": "Codex"
       },

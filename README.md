@@ -36,12 +36,22 @@ It bridges the gap between third-party AI providers (OrcaRouter, OpenRouter, Dee
 
 ---
 
-## 🎁 Recommended Gateway: OrcaRouter
+## 🌐 Supported Providers & Gateway Presets
 
-This extension officially recommends **[OrcaRouter](https://www.orcarouter.ai/ref/ref_b779bf29c6f860b78f52)** for unified model access:
-- 🌟 **Comprehensive Model Selection**: Access OpenAI (o1/o3/gpt-4o), Anthropic Claude 3.5, Google Gemini 2.0/1.5, DeepSeek R1/V3 through a single OpenAI-compatible API.
-- 💰 **Exclusive Free Credits**: Register through our [partner referral link (https://www.orcarouter.ai/ref/ref_b779bf29c6f860b78f52)](https://www.orcarouter.ai/ref/ref_b779bf29c6f860b78f52) to receive exclusive free credits.
-- ⚡ **1-Click Integration**: In the extension sidebar, click `+` and choose **`1-Click Connect OrcaRouter`** — the endpoint `https://api.orcarouter.ai/v1` is automatically pre-configured.
+Codex Model Switcher includes pre-configured templates for leading OpenAI-compatible providers:
+
+| Provider | Base URL | Recommended Protocol | Documentation |
+| :--- | :--- | :--- | :--- |
+| **OrcaRouter** | `https://api.orcarouter.ai/v1` | `chat` | [orcarouter.ai](https://www.orcarouter.ai/ref/ref_b779bf29c6f860b78f52) |
+| **OpenRouter** | `https://openrouter.ai/api/v1` | `chat` | [openrouter.ai](https://openrouter.ai) |
+| **DeepSeek** | `https://api.deepseek.com/v1` | `chat` | [deepseek.com](https://deepseek.com) |
+| **SiliconFlow** | `https://api.siliconflow.cn/v1` | `chat` | [siliconflow.cn](https://siliconflow.cn) |
+| **Custom / Ollama** | `http://localhost:11434/v1` | `chat` / `responses` | Self-hosted |
+
+### Quick Start with OrcaRouter:
+1. Obtain an API key from [OrcaRouter](https://www.orcarouter.ai/ref/ref_b779bf29c6f860b78f52).
+2. In the sidebar, click `+` -> Select **OrcaRouter** (the endpoint is pre-configured).
+3. Enter your API key. All models (OpenAI, Claude, Gemini, DeepSeek) are dynamically discovered and ready to use in Codex.
 
 ---
 

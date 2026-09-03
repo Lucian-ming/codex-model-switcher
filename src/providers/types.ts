@@ -14,6 +14,8 @@ export interface ProviderConfig {
   models: ModelProfile[];
   enabled?: boolean;
   builtin?: boolean;
+  website?: string;
+  description?: string;
   lastTestedAt?: string;
   latencyMs?: number;
   healthStatus?: 'healthy' | 'unhealthy' | 'untested';

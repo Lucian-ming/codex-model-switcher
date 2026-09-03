@@ -36,12 +36,22 @@
 
 ---
 
-## 🎁 官方推荐中转网关：OrcaRouter
+## 🌐 预置与支持的服务商 (Supported Providers)
 
-本项目官方推荐搭配 **[OrcaRouter](https://www.orcarouter.ai/ref/ref_b779bf29c6f860b78f52)** AI 聚合中转路由使用：
-- 🌟 **全模型覆盖**：聚合 OpenAI (o1/o3/gpt-4o)、Anthropic Claude 3.5、Google Gemini 2.0/1.5、DeepSeek R1/V3 等主流顶尖模型；
-- 💰 **专属注册福利**：通过 [专属邀请注册通道 (https://www.orcarouter.ai/ref/ref_b779bf29c6f860b78f52)](https://www.orcarouter.ai/ref/ref_b779bf29c6f860b78f52) 注册，即可获赠专属新用户免费测试额度；
-- ⚡ **一键极速接入**：在插件“服务商与模型”点击 `+` 号，选择 **`一键接入 OrcaRouter`**，端点已自动预设（`https://api.orcarouter.ai/v1`），填入 Key 即可秒级同步全系列模型！
+插件内置了主流 OpenAI 兼容中转网关的预设模版，支持在添加时一键预填配置：
+
+| 服务商 (Provider) | API 基础端点 (Base URL) | 推荐协议 | 官网与文档 |
+| :--- | :--- | :--- | :--- |
+| **OrcaRouter** | `https://api.orcarouter.ai/v1` | `chat` | [orcarouter.ai](https://www.orcarouter.ai/ref/ref_b779bf29c6f860b78f52) |
+| **OpenRouter** | `https://openrouter.ai/api/v1` | `chat` | [openrouter.ai](https://openrouter.ai) |
+| **DeepSeek** | `https://api.deepseek.com/v1` | `chat` | [deepseek.com](https://deepseek.com) |
+| **SiliconFlow (硅基流动)** | `https://api.siliconflow.cn/v1` | `chat` | [siliconflow.cn](https://siliconflow.cn) |
+| **自定义 / 本地 Ollama** | `http://localhost:11434/v1` | `chat` / `responses` | 本地自建 |
+
+### 快速配置 OrcaRouter 示例：
+1. 前往 [OrcaRouter 平台](https://www.orcarouter.ai/ref/ref_b779bf29c6f860b78f52) 获取 API Key；
+2. 在 VS Code 侧边栏“服务商与模型”点击 `+` 号，选择 **`OrcaRouter`** 预设（端点已自动预填）；
+3. 填入 API Key，插件将全自动发现并同步 OrcaRouter 聚合的全系大模型（含 Claude 3.5、o1/o3、Gemini 2.0、DeepSeek 等）。
 
 ---
 
